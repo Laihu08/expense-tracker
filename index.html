@@ -555,6 +555,80 @@
       white-space: nowrap;
     }
 
+    .recurring-detail-trigger {
+      padding: 0;
+      border: 0;
+      background: none;
+      color: var(--text);
+      font: inherit;
+      font-size: inherit;
+      font-weight: inherit;
+      text-align: left;
+      cursor: pointer;
+    }
+
+    .recurring-detail-trigger:hover {
+      color: var(--primary);
+    }
+
+    .recurring-detail-trigger:focus-visible {
+      outline: 2px solid var(--primary);
+      outline-offset: 2px;
+      border-radius: 2px;
+    }
+
+    .recurring-detail-content {
+      padding: 20px 24px 24px;
+      overflow-y: auto;
+    }
+
+    .recurring-detail-description {
+      margin-bottom: 18px;
+      color: var(--text-secondary);
+      font-size: .9rem;
+      line-height: 1.5;
+    }
+
+    .recurring-detail-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .recurring-detail-field {
+      padding: 13px 14px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      background: var(--surface-hover);
+    }
+
+    .recurring-detail-label {
+      display: block;
+      margin-bottom: 5px;
+      color: var(--text-muted);
+      font-size: .72rem;
+      font-weight: 700;
+      letter-spacing: .5px;
+      text-transform: uppercase;
+    }
+
+    .recurring-detail-value {
+      color: var(--text);
+      font-size: .9rem;
+      font-weight: 600;
+      overflow-wrap: anywhere;
+    }
+
+    .recurring-detail-field.remaining {
+      border-color: var(--primary);
+      background: var(--primary-light);
+    }
+
+    .recurring-detail-field.remaining .recurring-detail-value {
+      color: var(--primary);
+      font-size: 1rem;
+    }
+
     .expense-actions {
       display: flex;
       align-items: center;
@@ -646,6 +720,14 @@
 
       .edit-expense-form {
         padding: 18px;
+      }
+
+      .recurring-detail-content {
+        padding: 18px;
+      }
+
+      .recurring-detail-grid {
+        grid-template-columns: 1fr;
       }
     }
 
@@ -1185,6 +1267,19 @@
   </div>
 </dialog>
 
+<dialog class="category-detail-dialog" id="recurringDetailDialog" aria-labelledby="recurringDetailTitle">
+  <div class="category-detail-content">
+    <header class="category-detail-header">
+      <div>
+        <h2 class="category-detail-title" id="recurringDetailTitle"></h2>
+        <p class="category-detail-total">Recurring monthly expense</p>
+      </div>
+      <button class="category-detail-close" id="closeRecurringDetail" type="button" aria-label="Close recurring expense details">×</button>
+    </header>
+    <div id="recurringDetailContent" class="recurring-detail-content"></div>
+  </div>
+</dialog>
+
 <dialog class="category-detail-dialog" id="editExpenseDialog" aria-labelledby="editExpenseTitle">
   <div class="category-detail-content">
     <header class="category-detail-header">
@@ -1287,8 +1382,8 @@
     { item: 'Google Cloud', amount: 220 },
     { item: 'Apple Cloud', amount: 90 },
     { item: 'Taiwan insurance', amount: 686 },
-    { item: 'India insurance', amount: 3500, endMonth: 2035 * 12 + 6 },
-    { item: 'Laptop EMI', amount: 4450, endMonth: 2027 * 12 + 6 }
+    { item: 'India insurance', amount: 3500, endMonth: 2035 * 12 + 6, detailId: 'indiaInsurance' },
+    { item: 'Laptop EMI', amount: 4450, endMonth: 2027 * 12 + 6, detailId: 'laptopEmi' }
   ];
 
   function getCatMeta(cat) {
@@ -1297,6 +1392,61 @@
 
   function formatAmount(n) {
     return Number(n).toLocaleString();
+  }
+
+  function getRemainingPayments(detailId, now = new Date()) {
+    const currentMonth = now.getFullYear() * 12 + now.getMonth();
+    if (detailId === 'laptopEmi') {
+      return Math.max(0, (2027 * 12 + 6) - currentMonth);
+    }
+    if (detailId === 'indiaInsurance') {
+      const startMonth = 2025 * 12 + 6;
+      const endMonth = 2035 * 12 + 6;
+      return Math.max(0, endMonth - Math.max(startMonth, currentMonth) + 1);
+    }
+    return 0;
+  }
+
+  function openRecurringDetails(detailId) {
+    const expense = RECURRING_EXPENSES.find(row => row.detailId === detailId);
+    if (!expense) return;
+
+    const details = detailId === 'laptopEmi'
+      ? {
+          title: 'Laptop EMI',
+          description: 'Monthly installment plan for your MacBook.',
+          fields: [
+            ['Monthly installment', `NT$${formatAmount(expense.amount)}`],
+            ['Category', 'Bills · Monthly'],
+            ['Purchased', 'August 2026'],
+            ['EMI period', 'August 2026 – July 2027'],
+            ['Remaining EMIs', `${getRemainingPayments(detailId)} EMIs`]
+          ]
+        }
+      : {
+          title: 'India insurance',
+          description: 'Monthly premium for your TATA AIA Life Insurance policy.',
+          fields: [
+            ['Monthly premium', `NT$${formatAmount(expense.amount)}`],
+            ['Category', 'Bills · Monthly'],
+            ['Insurer', 'TATA AIA Life Insurance'],
+            ['Policy started', 'July 2025'],
+            ['Premiums through', 'July 2035'],
+            ['Payments remaining', `${getRemainingPayments(detailId)} monthly payments`]
+          ]
+        };
+
+    document.getElementById('recurringDetailTitle').textContent = details.title;
+    document.getElementById('recurringDetailContent').innerHTML = `
+      <p class="recurring-detail-description">${details.description}</p>
+      <div class="recurring-detail-grid">
+        ${details.fields.map(([label, value], index) => `
+          <div class="recurring-detail-field${index === details.fields.length - 1 ? ' remaining' : ''}">
+            <span class="recurring-detail-label">${label}</span>
+            <span class="recurring-detail-value">${value}</span>
+          </div>`).join('')}
+      </div>`;
+    document.getElementById('recurringDetailDialog').showModal();
   }
 
   function showToast(msg) {
@@ -1388,6 +1538,10 @@
   const categoryDialog = document.getElementById('categoryDialog');
   document.getElementById('closeCategoryDialog').addEventListener('click', () => categoryDialog.close());
   categoryDialog.addEventListener('cancel', event => event.preventDefault());
+
+  const recurringDetailDialog = document.getElementById('recurringDetailDialog');
+  document.getElementById('closeRecurringDetail').addEventListener('click', () => recurringDetailDialog.close());
+  recurringDetailDialog.addEventListener('cancel', event => event.preventDefault());
 
   let editingExpenseIndex = null;
   const editExpenseDialog = document.getElementById('editExpenseDialog');
@@ -1586,7 +1740,9 @@
         <div class="expense-item">
           <div class="item-icon" style="background:${meta.color}15; color:${meta.color};">${meta.icon}</div>
           <div class="item-details">
-            <div class="item-name">${row.item}</div>
+            ${row.detailId
+              ? `<button class="item-name recurring-detail-trigger" type="button" onclick="openRecurringDetails('${row.detailId}')" aria-haspopup="dialog">${row.item}</button>`
+              : `<div class="item-name">${row.item}</div>`}
             <div class="item-meta">${expenseMeta}</div>
           </div>
           <div class="item-amount">NT$${formatAmount(amount)}</div>
