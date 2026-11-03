@@ -12,6 +12,7 @@
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
+      color-scheme: light;
       --bg: #f0f2f5;
       --surface: #ffffff;
       --surface-hover: #f8f9fb;
@@ -45,12 +46,32 @@
       --cat-other: #6b7280;
     }
 
+    :root[data-theme="dark"] {
+      color-scheme: dark;
+      --bg: #111827;
+      --surface: #1f2937;
+      --surface-hover: #273449;
+      --primary: #818cf8;
+      --primary-light: #312e81;
+      --primary-dark: #6366f1;
+      --danger: #f87171;
+      --danger-light: #451a1a;
+      --text: #f1f5f9;
+      --text-secondary: #cbd5e1;
+      --text-muted: #94a3b8;
+      --border: #374151;
+      --shadow-sm: 0 1px 3px rgba(0,0,0,.25), 0 1px 2px rgba(0,0,0,.2);
+      --shadow-md: 0 4px 12px rgba(0,0,0,.3), 0 2px 4px rgba(0,0,0,.2);
+      --shadow-lg: 0 10px 30px rgba(0,0,0,.4), 0 4px 8px rgba(0,0,0,.25);
+    }
+
     body {
       font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
       background: var(--bg);
       color: var(--text);
       min-height: 100dvh;
       -webkit-font-smoothing: antialiased;
+      transition: background-color var(--transition), color var(--transition);
     }
 
     /* ───────────────── Buttons ───────────────── */
@@ -108,13 +129,45 @@
       margin: 0 auto;
     }
 
+    .app-header-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
     .app-title {
       font-size: .85rem;
       font-weight: 500;
       opacity: .8;
       text-transform: uppercase;
       letter-spacing: 1.5px;
-      margin-bottom: 8px;
+    }
+
+    .theme-select {
+      padding: 7px 10px;
+      border: 1px solid rgba(255,255,255,.35);
+      border-radius: var(--radius-xs);
+      background: rgba(255,255,255,.12);
+      color: #fff;
+      font: inherit;
+      font-size: .8rem;
+      cursor: pointer;
+    }
+
+    .theme-select option {
+      background: var(--surface);
+      color: var(--text);
+    }
+
+    :root[data-theme="dark"] .comparison-badge.spending-down {
+      color: #86efac;
+      background: rgba(34, 197, 94, .16);
+    }
+
+    :root[data-theme="dark"] .comparison-badge.spending-up {
+      color: #fca5a5;
+      background: rgba(239, 68, 68, .16);
     }
 
     .month-nav {
@@ -974,7 +1027,13 @@
   <!-- Header -->
   <header class="app-header">
     <div class="app-header-inner">
-      <div class="app-title">Expense Tracker</div>
+      <div class="app-header-top">
+        <div class="app-title">Expense Tracker</div>
+        <select class="theme-select" id="themeSelect" aria-label="Color theme">
+          <option value="light">☀️ Light</option>
+          <option value="dark">🌙 Dark</option>
+        </select>
+      </div>
       <div class="month-nav">
         <div class="month-controls">
           <button class="nav-btn" id="prevMonth" onclick="changeMonth(-1)">‹</button>
@@ -1124,6 +1183,29 @@
 <script>
   // ───────── CONFIG ─────────
   const API_URL = "https://script.google.com/macros/s/AKfycbxgwYOVgKautJp8948_SNm6BvcqzZfhmH3AUXckmggIZAOCU0o3Z8Jycc1qcwq0xEjN/exec";
+
+  const themeSelect = document.getElementById('themeSelect');
+  function setTheme(theme, persist = true) {
+    const selectedTheme = theme === 'dark' ? 'dark' : 'light';
+    document.documentElement.dataset.theme = selectedTheme;
+    themeSelect.value = selectedTheme;
+    if (persist) {
+      try {
+        localStorage.setItem('expense-tracker-theme', selectedTheme);
+      } catch (error) {
+        console.warn('Could not save theme preference:', error);
+      }
+    }
+  }
+
+  let savedTheme = 'light';
+  try {
+    savedTheme = localStorage.getItem('expense-tracker-theme') || 'light';
+  } catch (error) {
+    console.warn('Could not read saved theme preference:', error);
+  }
+  setTheme(savedTheme, false);
+  themeSelect.addEventListener('change', () => setTheme(themeSelect.value));
 
   // ───────── Helpers ─────────
   const CATEGORY_META = {
