@@ -236,12 +236,52 @@
       line-height: 1.1;
     }
 
+    .total-amount-row {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 8px 14px;
+    }
+
     .total-card .amount .currency {
       font-size: 1.4rem;
       font-weight: 600;
       color: var(--text-secondary);
       vertical-align: super;
       margin-right: 2px;
+    }
+
+    .comparison-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      color: var(--text-secondary);
+      font-size: .78rem;
+      font-weight: 700;
+      line-height: 1;
+      white-space: nowrap;
+    }
+
+    .total-comparison {
+      padding: 8px 10px;
+      border-radius: 999px;
+      background: var(--surface-hover);
+      font-size: .85rem;
+    }
+
+    .comparison-badge.spending-down {
+      color: #15803d;
+      background: #f0fdf4;
+    }
+
+    .comparison-badge.spending-up {
+      color: #dc2626;
+      background: #fef2f2;
+    }
+
+    .comparison-badge.spending-same {
+      color: var(--text-secondary);
     }
 
     .total-loading {
@@ -310,6 +350,14 @@
       font-size: 1.05rem;
       font-weight: 700;
       color: var(--text);
+    }
+
+    .cat-card .comparison-badge {
+      align-self: flex-start;
+      margin-top: 2px;
+      padding: 5px 7px;
+      border-radius: 999px;
+      background: var(--surface-hover);
     }
 
     .category-detail-dialog {
@@ -406,6 +454,13 @@
       overflow-y: auto;
       overscroll-behavior: contain;
       padding: 4px 24px 16px;
+    }
+
+    .category-detail-empty {
+      padding: 24px 0;
+      color: var(--text-muted);
+      font-size: .9rem;
+      text-align: center;
     }
 
     .category-detail-row {
@@ -933,7 +988,10 @@
     <!-- Total Card -->
     <div class="total-card">
       <div class="label">Total Spent This Month</div>
-      <div class="amount" id="monthTotal" aria-live="polite"><span class="total-loading" role="status" aria-label="Loading total"></span></div>
+      <div class="total-amount-row">
+        <div class="amount" id="monthTotal" aria-live="polite"><span class="total-loading" role="status" aria-label="Loading total"></span></div>
+        <span id="monthComparison" aria-live="polite"></span>
+      </div>
     </div>
 
     <!-- Category Breakdown -->
@@ -1107,16 +1165,16 @@
   let viewYear = new Date().getFullYear();
   let allData = [];
 
-  function getMonthlyExpenses(data) {
+  function getMonthlyExpenses(data, year = viewYear, month = viewMonth) {
     const expenses = data
       .map((row, originalIndex) => ({ ...row, originalIndex }))
       .sort((a, b) => new Date(b.date) - new Date(a.date) || b.originalIndex - a.originalIndex);
-    const monthKey = viewYear * 12 + viewMonth;
+    const monthKey = year * 12 + month;
     const now = new Date();
     const currentMonthKey = now.getFullYear() * 12 + now.getMonth();
 
     if (monthKey >= currentMonthKey) {
-      const monthDate = `${viewYear}-${String(viewMonth + 1).padStart(2, '0')}-01`;
+      const monthDate = `${year}-${String(month + 1).padStart(2, '0')}-01`;
       const recurringRows = RECURRING_EXPENSES
         .filter(expense => expense.endMonth === undefined || monthKey <= expense.endMonth)
         .map(expense => ({
@@ -1130,8 +1188,33 @@
 
     return expenses.filter(row => {
       const rowDate = new Date(row.date);
-      return rowDate.getMonth() === viewMonth && rowDate.getFullYear() === viewYear;
+      return rowDate.getMonth() === month && rowDate.getFullYear() === year;
     });
+  }
+
+  function getComparison(current, previous) {
+    if (previous === 0) {
+      if (current === 0) return { text: '→ 0%', className: 'spending-same', label: 'No change from last month' };
+      return { text: '↑ NEW', className: 'spending-up', label: 'New spending compared with last month' };
+    }
+
+    const difference = current - previous;
+    if (difference === 0) {
+      return { text: '→ 0%', className: 'spending-same', label: 'No change from last month' };
+    }
+
+    const percentage = Math.round(Math.abs(difference / previous) * 100);
+    const isDown = difference < 0;
+    return {
+      text: `${isDown ? '↓' : '↑'} ${percentage}%`,
+      className: isDown ? 'spending-down' : 'spending-up',
+      label: `${percentage}% ${isDown ? 'less' : 'more'} than last month`
+    };
+  }
+
+  function renderComparison(current, previous, extraClass = '') {
+    const comparison = getComparison(current, previous);
+    return `<span class="comparison-badge ${extraClass} ${comparison.className}" aria-label="${comparison.label}" title="${comparison.label}">${comparison.text}</span>`;
   }
 
   function openCategoryDetails(category, expenses) {
@@ -1140,7 +1223,7 @@
     document.getElementById('categoryDialogTitle').textContent = `${getCatMeta(category).icon} ${category}`;
     document.getElementById('categoryDialogTotal').textContent =
       `${categoryExpenses.length} expense${categoryExpenses.length === 1 ? '' : 's'} · NT$${formatAmount(total)}`;
-    document.getElementById('categoryExpenseList').innerHTML = categoryExpenses.map(row => {
+    const expenseRows = categoryExpenses.map(row => {
       const rowDate = new Date(row.date);
       return `
         <li class="category-detail-row">
@@ -1151,6 +1234,8 @@
           <div class="category-detail-amount">NT$${formatAmount(parseFloat(row.amount) || 0)}</div>
         </li>`;
     }).join('');
+    document.getElementById('categoryExpenseList').innerHTML = expenseRows ||
+      `<li class="category-detail-empty">No ${category} expenses this month.</li>`;
     document.getElementById('categoryDialog').showModal();
   }
 
@@ -1322,6 +1407,7 @@
   async function fetchData() {
     document.getElementById('monthTotal').innerHTML =
       '<span class="total-loading" role="status" aria-label="Loading total"></span>';
+    document.getElementById('monthComparison').textContent = '';
     document.getElementById('expenseList').innerHTML =
       '<li class="loading-state" role="status"><img src="assets/expense-loading.png" alt="A person checking a long expense receipt"><p>Loading your expenses...</p></li>';
 
@@ -1347,6 +1433,14 @@
     let listHtml = "";
 
     const monthlyExpenses = getMonthlyExpenses(data);
+    const previousDate = new Date(viewYear, viewMonth - 1, 1);
+    const previousExpenses = getMonthlyExpenses(data, previousDate.getFullYear(), previousDate.getMonth());
+    const previousTotal = previousExpenses.reduce((total, row) => total + (parseFloat(row.amount) || 0), 0);
+    const previousCatTotals = {};
+    previousExpenses.forEach(row => {
+      previousCatTotals[row.category] = (previousCatTotals[row.category] || 0) + (parseFloat(row.amount) || 0);
+    });
+
     monthlyExpenses.forEach((row) => {
       const rowDate = new Date(row.date);
       const amount = parseFloat(row.amount) || 0;
@@ -1377,16 +1471,25 @@
     // Total
     document.getElementById('monthTotal').innerHTML =
       `<span class="currency">NT$</span>${formatAmount(monthTotal)}`;
+    document.getElementById('monthComparison').innerHTML =
+      renderComparison(monthTotal, previousTotal, 'total-comparison');
 
     // Category cards
-    const categories = Object.entries(catTotals);
+    const categories = [
+      ...Object.entries(catTotals),
+      ...Object.keys(previousCatTotals)
+        .filter(category => !Object.hasOwn(catTotals, category))
+        .map(category => [category, 0])
+    ];
     const catHtml = categories.map(([cat, total], index) => {
       const meta = getCatMeta(cat);
+      const comparison = renderComparison(total, previousCatTotals[cat] || 0);
       return `
         <button class="cat-card" type="button" data-category-index="${index}">
           <div class="cat-icon" style="background:${meta.color}15; color:${meta.color};">${meta.icon}</div>
           <div class="cat-name">${cat}</div>
           <div class="cat-amount">NT$${formatAmount(total)}</div>
+          ${comparison}
         </button>`;
     }).join('');
     document.getElementById('categoryTotals').innerHTML = catHtml;
