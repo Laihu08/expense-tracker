@@ -136,14 +136,6 @@
       gap: 12px;
     }
 
-    .app-title {
-      font-size: .85rem;
-      font-weight: 500;
-      opacity: .8;
-      text-transform: uppercase;
-      letter-spacing: 1.5px;
-    }
-
     .theme-toggle {
       display: inline-flex;
       align-items: center;
@@ -1052,12 +1044,12 @@
       }
 
       .expense-list-heading {
-        align-items: flex-start;
-        flex-wrap: wrap;
+        align-items: center;
       }
 
       .swipe-hint {
-        width: 100%;
+        width: auto;
+        text-align: right;
       }
     }
 
@@ -1092,7 +1084,6 @@
   <header class="app-header">
     <div class="app-header-inner">
       <div class="app-header-top">
-        <div class="app-title">Expense Tracker</div>
         <button class="theme-toggle" id="themeToggle" type="button" aria-label="Switch to dark theme" title="Switch to dark theme">🌙</button>
       </div>
       <div class="month-nav">
