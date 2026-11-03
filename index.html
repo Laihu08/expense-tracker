@@ -557,7 +557,7 @@
 
     .category-detail-amount {
       flex: 0 0 auto;
-      color: var(--danger);
+      color: var(--text);
       font-size: .9rem;
       font-weight: 700;
       white-space: nowrap;
@@ -760,6 +760,52 @@
       list-style: none;
     }
 
+    .expense-list-heading {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    .expense-list-heading .card-title {
+      margin: 0;
+    }
+
+    .swipe-hint {
+      color: var(--text-muted);
+      font-size: .75rem;
+      white-space: nowrap;
+    }
+
+    .recurring-heading {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 14px 4px 8px;
+      border-bottom: 1px solid var(--border);
+      color: var(--text-muted);
+      font-size: .72rem;
+      font-weight: 700;
+      letter-spacing: .8px;
+      text-transform: uppercase;
+    }
+
+    .recurring-monthly-badge {
+      display: inline-block;
+      margin-left: 6px;
+      padding: 2px 7px;
+      border-radius: 999px;
+      background: var(--primary-light);
+      color: var(--primary);
+      font-size: .7rem;
+      font-weight: 600;
+      letter-spacing: 0;
+      text-transform: none;
+      vertical-align: middle;
+    }
+
     .swipe-container {
       position: relative;
       overflow: hidden;
@@ -888,7 +934,7 @@
     .expense-item .item-amount {
       font-size: .95rem;
       font-weight: 700;
-      color: var(--danger);
+      color: var(--text);
       white-space: nowrap;
     }
 
@@ -1004,6 +1050,15 @@
       .card {
         padding: 20px 16px;
       }
+
+      .expense-list-heading {
+        align-items: flex-start;
+        flex-wrap: wrap;
+      }
+
+      .swipe-hint {
+        width: 100%;
+      }
     }
 
     @media (min-width: 768px) {
@@ -1070,7 +1125,7 @@
     <div class="content-grid">
       <!-- Add Expense Form -->
       <div class="card">
-        <div class="card-title"><span class="icon">➕</span> Add Expense</div>
+        <div class="card-title">Add Expense</div>
         <form id="expenseForm">
           <div class="form-group">
             <label for="amount">Amount (NTD)</label>
@@ -1109,7 +1164,10 @@
 
       <!-- Expense List -->
       <div class="card">
-        <div class="card-title"><span class="icon">📋</span> Recent Expenses</div>
+        <div class="expense-list-heading">
+          <div class="card-title">Expenses</div>
+          <div class="swipe-hint">Swipe left to delete</div>
+        </div>
         <div class="expense-list-wrapper">
           <ul class="expense-list" id="expenseList">
             <li class="loading-state" role="status">
@@ -1523,11 +1581,37 @@
     }
   }
 
+  function renderExpenseRow(row) {
+    const rowDate = new Date(row.date);
+    const amount = parseFloat(row.amount) || 0;
+    const meta = getCatMeta(row.category);
+    const expenseMeta = row.isRecurring
+      ? `${row.category}<span class="recurring-monthly-badge">Monthly</span>`
+      : `${row.category} · ${rowDate.toLocaleDateString('default', { month: 'short', day: 'numeric', year: 'numeric' })}`;
+
+    return `
+      <li class="swipe-container${row.isRecurring ? ' recurring-expense' : ''}"${row.isRecurring ? '' : ` data-row="${row.originalIndex}"`}>
+        ${row.isRecurring ? '' : '<div class="delete-bg"><span class="delete-icon">🗑️</span> Delete</div>'}
+        <div class="expense-item">
+          <div class="item-icon" style="background:${meta.color}15; color:${meta.color};">${meta.icon}</div>
+          <div class="item-details">
+            <div class="item-name">${row.item}</div>
+            <div class="item-meta">${expenseMeta}</div>
+          </div>
+          <div class="item-amount">NT$${formatAmount(amount)}</div>
+          ${row.isRecurring ? '' : `
+            <div class="expense-actions">
+              <button class="expense-action-btn" type="button" onclick="openEditExpense(${row.originalIndex})" title="Edit expense" aria-label="Edit ${row.item}">✏️</button>
+              <button class="delete-btn-desktop" onclick="deleteExpense(${row.originalIndex}, this)" title="Delete" aria-label="Delete ${row.item}">🗑️</button>
+            </div>`}
+        </div>
+      </li>`;
+  }
+
   // ───────── Render Dashboard ─────────
   function renderDashboard(data) {
     let monthTotal = 0;
     let catTotals = {};
-    let listHtml = "";
 
     const monthlyExpenses = getMonthlyExpenses(data);
     const previousDate = new Date(viewYear, viewMonth - 1, 1);
@@ -1539,30 +1623,10 @@
     });
 
     monthlyExpenses.forEach((row) => {
-      const rowDate = new Date(row.date);
       const amount = parseFloat(row.amount) || 0;
-      const meta = getCatMeta(row.category);
 
       monthTotal += amount;
       catTotals[row.category] = (catTotals[row.category] || 0) + amount;
-
-      listHtml += `
-        <li class="swipe-container${row.isRecurring ? ' recurring-expense' : ''}"${row.isRecurring ? '' : ` data-row="${row.originalIndex}"`}>
-          ${row.isRecurring ? '' : '<div class="delete-bg"><span class="delete-icon">🗑️</span> Delete</div>'}
-          <div class="expense-item">
-            <div class="item-icon" style="background:${meta.color}15; color:${meta.color};">${meta.icon}</div>
-            <div class="item-details">
-              <div class="item-name">${row.item}</div>
-              <div class="item-meta">${row.category}${row.isRecurring ? ' · Monthly' : ''} · ${rowDate.toLocaleDateString('default', { month: 'short', day: 'numeric', year: 'numeric' })}</div>
-            </div>
-            <div class="item-amount">-NT$${formatAmount(amount)}</div>
-            ${row.isRecurring ? '' : `
-              <div class="expense-actions">
-                <button class="expense-action-btn" type="button" onclick="openEditExpense(${row.originalIndex})" title="Edit expense" aria-label="Edit ${row.item}">✏️</button>
-                <button class="delete-btn-desktop" onclick="deleteExpense(${row.originalIndex}, this)" title="Delete" aria-label="Delete ${row.item}">🗑️</button>
-              </div>`}
-          </div>
-        </li>`;
     });
 
     // Total
@@ -1595,7 +1659,19 @@
     });
 
     // Expense list
-    if (listHtml) {
+    const regularExpenses = monthlyExpenses.filter(row => !row.isRecurring);
+    const recurringExpenses = monthlyExpenses.filter(row => row.isRecurring);
+    const recurringTotal = recurringExpenses.reduce((total, row) => total + (parseFloat(row.amount) || 0), 0);
+    if (regularExpenses.length || recurringExpenses.length) {
+      let listHtml = regularExpenses.map(renderExpenseRow).join('');
+      if (recurringExpenses.length) {
+        listHtml += `
+          <li class="recurring-heading">
+            <span>Recurring · Monthly</span>
+            <span>NT$${formatAmount(recurringTotal)}</span>
+          </li>
+          ${recurringExpenses.map(renderExpenseRow).join('')}`;
+      }
       document.getElementById('expenseList').innerHTML = listHtml;
       initSwipe();
     } else {
