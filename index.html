@@ -855,8 +855,10 @@
     let catTotals = {};
     let listHtml = "";
 
-    // Filter and display expenses for the selected month
-    const sorted = data.map((row, originalIndex) => ({ ...row, originalIndex })).reverse();
+    // Show dated expenses newest first, followed by recurring fixed bills.
+    const sorted = data
+      .map((row, originalIndex) => ({ ...row, originalIndex }))
+      .sort((a, b) => new Date(b.date) - new Date(a.date) || b.originalIndex - a.originalIndex);
     const monthKey = viewYear * 12 + viewMonth;
     const now = new Date();
     const currentMonthKey = now.getFullYear() * 12 + now.getMonth();
@@ -870,7 +872,7 @@
           date: monthDate,
           isRecurring: true
         }));
-      sorted.unshift(...recurringRows);
+      sorted.push(...recurringRows);
     }
 
     sorted.forEach((row) => {
