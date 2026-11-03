@@ -40,6 +40,7 @@
       --cat-market: #22c55e;
       --cat-grocery: #84cc16;
       --cat-entertainment: #ec4899;
+      --cat-health: #ef4444;
       --cat-other: #6b7280;
     }
 
@@ -116,16 +117,24 @@
     }
 
     .month-nav {
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-top: 4px;
+    }
+
+    .month-controls {
       display: flex;
       align-items: center;
       gap: 12px;
-      margin-top: 4px;
     }
 
     .current-date-info {
       margin-top: 10px;
       font-size: .82rem;
       color: rgba(255,255,255,.82);
+      text-align: center;
     }
 
     .month-nav .nav-btn {
@@ -164,6 +173,10 @@
     }
 
     .month-nav .today-btn {
+      position: absolute;
+      right: 0;
+      top: 50%;
+      transform: translateY(-50%);
       font-size: .75rem;
       font-weight: 600;
       padding: 5px 12px;
@@ -184,6 +197,10 @@
     .month-nav .today-btn:hover {
       background: rgba(255,255,255,.25);
       border-color: rgba(255,255,255,.5);
+    }
+
+    .month-nav .today-btn.visible:hover {
+      transform: translateY(-50%);
     }
 
     /* ───────────────── Dashboard Cards ───────────────── */
@@ -295,6 +312,9 @@
     }
 
     .category-detail-dialog {
+      position: fixed;
+      inset: 0;
+      margin: auto;
       width: min(520px, calc(100% - 32px));
       max-width: none;
       max-height: min(680px, calc(100dvh - 32px));
@@ -304,11 +324,33 @@
       color: var(--text);
       background: var(--surface);
       box-shadow: var(--shadow-lg);
+      opacity: 0;
+      transform: translateY(10px) scale(.98);
+      transition: opacity .2s ease, transform .2s ease, display .2s allow-discrete, overlay .2s allow-discrete;
+    }
+
+    .category-detail-dialog[open] {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+
+    @starting-style {
+      .category-detail-dialog[open] {
+        opacity: 0;
+        transform: translateY(10px) scale(.98);
+      }
     }
 
     .category-detail-dialog::backdrop {
       background: rgba(15, 23, 42, .55);
       backdrop-filter: blur(3px);
+      transition: background-color .2s ease, display .2s allow-discrete, overlay .2s allow-discrete;
+    }
+
+    @starting-style {
+      .category-detail-dialog[open]::backdrop {
+        background: rgba(15, 23, 42, 0);
+      }
     }
 
     .category-detail-content {
@@ -399,7 +441,77 @@
       white-space: nowrap;
     }
 
+    .expense-actions {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      flex: 0 0 auto;
+    }
+
+    .expense-action-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 32px;
+      height: 32px;
+      border: 0;
+      border-radius: 8px;
+      background: var(--surface-hover);
+      color: var(--text-secondary);
+      font-size: 15px;
+      cursor: pointer;
+    }
+
+    .expense-action-btn:hover {
+      background: var(--primary-light);
+      color: var(--primary);
+    }
+
+    .expense-actions .delete-btn-desktop {
+      display: inline-flex;
+    }
+
+    .edit-expense-form {
+      padding: 20px 24px 24px;
+      overflow-y: auto;
+    }
+
+    .edit-expense-form .category-detail-actions {
+      display: flex;
+      gap: 12px;
+      margin-top: 8px;
+    }
+
+    .btn-secondary {
+      background: var(--surface-hover);
+      color: var(--text);
+    }
+
+    .btn-secondary:hover {
+      background: var(--border);
+    }
+
+    @media (min-width: 768px) {
+      .expense-actions {
+        visibility: hidden;
+      }
+
+      .swipe-container:hover .expense-actions,
+      .swipe-container:focus-within .expense-actions {
+        visibility: visible;
+      }
+    }
+
     @media (max-width: 480px) {
+      .month-nav .today-btn {
+        top: calc(100% + 6px);
+        transform: none;
+      }
+
+      .month-nav .today-btn.visible:hover {
+        transform: none;
+      }
+
       .category-detail-dialog {
         width: calc(100% - 24px);
         max-height: calc(100dvh - 24px);
@@ -416,6 +528,10 @@
       .category-detail-list {
         padding-right: 18px;
         padding-left: 18px;
+      }
+
+      .edit-expense-form {
+        padding: 18px;
       }
     }
 
@@ -698,6 +814,10 @@
       .loading-state img {
         animation: none;
       }
+
+      .category-detail-dialog {
+        transition: none;
+      }
     }
 
     /* ───────────────── Toast notification ───────────────── */
@@ -796,9 +916,11 @@
     <div class="app-header-inner">
       <div class="app-title">Expense Tracker</div>
       <div class="month-nav">
-        <button class="nav-btn" id="prevMonth" onclick="changeMonth(-1)">‹</button>
-        <div class="month-label" id="monthLabel"></div>
-        <button class="nav-btn" id="nextMonth" onclick="changeMonth(1)">›</button>
+        <div class="month-controls">
+          <button class="nav-btn" id="prevMonth" onclick="changeMonth(-1)">‹</button>
+          <div class="month-label" id="monthLabel"></div>
+          <button class="nav-btn" id="nextMonth" onclick="changeMonth(1)">›</button>
+        </div>
         <button class="today-btn" id="todayBtn" onclick="goToCurrentMonth()">Today</button>
       </div>
       <div class="current-date-info" id="currentDateInfo" aria-live="polite" hidden></div>
@@ -841,6 +963,7 @@
                 <option value="Market">🥬 Market</option>
                 <option value="Grocery">🛒 Grocery</option>
                 <option value="Entertainment">🎬 Entertainment</option>
+                <option value="Health">💪🏼 Health</option>
                 <option value="Other">📦 Other</option>
               </select>
             </div>
@@ -884,6 +1007,52 @@
   </div>
 </dialog>
 
+<dialog class="category-detail-dialog" id="editExpenseDialog" aria-labelledby="editExpenseTitle">
+  <div class="category-detail-content">
+    <header class="category-detail-header">
+      <div>
+        <h2 class="category-detail-title" id="editExpenseTitle">Edit expense</h2>
+        <p class="category-detail-total">Update the expense details below.</p>
+      </div>
+      <button class="category-detail-close" id="closeEditExpense" type="button" aria-label="Close edit expense">×</button>
+    </header>
+    <form class="edit-expense-form" id="editExpenseForm">
+      <div class="form-group">
+        <label for="editAmount">Amount (NTD)</label>
+        <input type="number" id="editAmount" min="0.01" step="any" required>
+      </div>
+      <div class="form-group">
+        <label for="editItem">Description</label>
+        <input type="text" id="editItem" required>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label for="editCategory">Category</label>
+          <select id="editCategory" required>
+            <option value="Food">🍜 Food</option>
+            <option value="Transport">🚌 Transport</option>
+            <option value="Shopping">🛍️ Shopping</option>
+            <option value="Bills">📄 Bills</option>
+            <option value="Market">🥬 Market</option>
+            <option value="Grocery">🛒 Grocery</option>
+            <option value="Entertainment">🎬 Entertainment</option>
+            <option value="Health">💪🏼 Health</option>
+            <option value="Other">📦 Other</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="editDate">Date</label>
+          <input type="date" id="editDate" required>
+        </div>
+      </div>
+      <div class="category-detail-actions">
+        <button type="button" class="btn btn-secondary" id="cancelEditExpense">Cancel</button>
+        <button type="submit" class="btn btn-primary" id="saveEditExpense">Save changes</button>
+      </div>
+    </form>
+  </div>
+</dialog>
+
 <!-- Toast -->
 <div class="toast" id="toast"></div>
 
@@ -900,6 +1069,7 @@
     Market:    { icon: '🥬', color: 'var(--cat-market)' },
     Grocery:   { icon: '🛒', color: 'var(--cat-grocery)' },
     Entertainment: { icon: '🎬', color: 'var(--cat-entertainment)' },
+    Health:    { icon: '💪🏼', color: 'var(--cat-health)' },
     Other:     { icon: '📦', color: 'var(--cat-other)' }
   };
 
@@ -984,6 +1154,77 @@
   document.getElementById('closeCategoryDialog').addEventListener('click', () => categoryDialog.close());
   categoryDialog.addEventListener('cancel', event => event.preventDefault());
 
+  let editingExpenseIndex = null;
+  const editExpenseDialog = document.getElementById('editExpenseDialog');
+  const editExpenseForm = document.getElementById('editExpenseForm');
+  document.getElementById('closeEditExpense').addEventListener('click', () => editExpenseDialog.close());
+  document.getElementById('cancelEditExpense').addEventListener('click', () => editExpenseDialog.close());
+  editExpenseDialog.addEventListener('cancel', event => event.preventDefault());
+
+  function toDateInputValue(value) {
+    if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}/.test(value)) {
+      return value.slice(0, 10);
+    }
+
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return '';
+    return new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+  }
+
+  function openEditExpense(dataIndex) {
+    const expense = allData[dataIndex];
+    if (!expense) {
+      showToast('❌ Could not find this expense');
+      return;
+    }
+    editingExpenseIndex = dataIndex;
+    document.getElementById('editAmount').value = expense.amount;
+    document.getElementById('editItem').value = expense.item;
+    document.getElementById('editCategory').value = expense.category;
+    document.getElementById('editDate').value = toDateInputValue(expense.date);
+    editExpenseDialog.showModal();
+  }
+
+  editExpenseForm.addEventListener('submit', async event => {
+    event.preventDefault();
+    if (editingExpenseIndex === null) return;
+
+    const saveButton = document.getElementById('saveEditExpense');
+    saveButton.disabled = true;
+    saveButton.innerHTML = '<span class="spinner"></span> Saving...';
+    const updatedExpense = {
+      action: 'edit',
+      row: editingExpenseIndex + 2,
+      amount: document.getElementById('editAmount').value,
+      item: document.getElementById('editItem').value.trim(),
+      category: document.getElementById('editCategory').value,
+      date: document.getElementById('editDate').value
+    };
+
+    try {
+      const response = await fetch(API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain' },
+        body: JSON.stringify(updatedExpense)
+      });
+      const result = await response.json();
+      if (result.status !== 'success') {
+        throw new Error(result.message || 'Expense update was rejected');
+      }
+
+      editExpenseDialog.close();
+      editingExpenseIndex = null;
+      showToast('✅ Expense updated!');
+      await fetchData();
+    } catch (error) {
+      console.error('Failed to update expense:', error);
+      showToast('❌ Failed to update expense. Check the Apps Script edit action.');
+    } finally {
+      saveButton.disabled = false;
+      saveButton.textContent = 'Save changes';
+    }
+  });
+
   function updateCurrentDateInfo() {
     const now = new Date();
     const dateInfo = document.getElementById('currentDateInfo');
@@ -992,14 +1233,13 @@
     if (!isCurrentMonth) return;
 
     const daysLeft = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate() - now.getDate();
-    const todayLabel = now.toLocaleDateString('default', {
-      weekday: 'long',
-      month: 'long',
+    const todayLabel = now.toLocaleDateString('en-US', {
+      weekday: 'short',
+      month: 'short',
       day: 'numeric',
-      year: 'numeric'
     });
     const remainingLabel = daysLeft === 1 ? '1 day left' : `${daysLeft} days left`;
-    dateInfo.textContent = `Today: ${todayLabel} · ${remainingLabel} in this month`;
+    dateInfo.textContent = `${todayLabel} [ ${remainingLabel} ]`;
   }
 
   function updateMonthLabel() {
@@ -1121,7 +1361,11 @@
               <div class="item-meta">${row.category}${row.isRecurring ? ' · Monthly' : ''} · ${rowDate.toLocaleDateString('default', { month: 'short', day: 'numeric', year: 'numeric' })}</div>
             </div>
             <div class="item-amount">-NT$${formatAmount(amount)}</div>
-            ${row.isRecurring ? '' : `<button class="delete-btn-desktop" onclick="deleteExpense(${row.originalIndex}, this)" title="Delete">🗑️</button>`}
+            ${row.isRecurring ? '' : `
+              <div class="expense-actions">
+                <button class="expense-action-btn" type="button" onclick="openEditExpense(${row.originalIndex})" title="Edit expense" aria-label="Edit ${row.item}">✏️</button>
+                <button class="delete-btn-desktop" onclick="deleteExpense(${row.originalIndex}, this)" title="Delete" aria-label="Delete ${row.item}">🗑️</button>
+              </div>`}
           </div>
         </li>`;
     });
@@ -1236,6 +1480,7 @@
 
       // Touch events
       item.addEventListener('touchstart', (e) => {
+        if (e.target.closest('.expense-actions')) return;
         onStart(e.touches[0].clientX);
       }, { passive: true });
 
@@ -1248,6 +1493,7 @@
 
       // Mouse events (for desktop testing)
       item.addEventListener('mousedown', (e) => {
+        if (e.target.closest('.expense-actions')) return;
         onStart(e.clientX);
         e.preventDefault();
       });
