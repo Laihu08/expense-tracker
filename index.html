@@ -655,6 +655,12 @@
       color: var(--primary);
     }
 
+    .recurring-amount-actions {
+      display: flex;
+      align-items: center;
+      flex: 0 0 auto;
+    }
+
     .expense-actions .delete-btn-desktop {
       display: inline-flex;
     }
@@ -1327,6 +1333,29 @@
   </div>
 </dialog>
 
+<dialog class="category-detail-dialog" id="editRecurringAmountDialog" aria-labelledby="editRecurringAmountTitle">
+  <div class="category-detail-content">
+    <header class="category-detail-header">
+      <div>
+        <h2 class="category-detail-title" id="editRecurringAmountTitle">Taiwan insurance</h2>
+        <p class="category-detail-total">Update the monthly recurring amount.</p>
+      </div>
+      <button class="category-detail-close" id="closeRecurringAmountEdit" type="button" aria-label="Close Taiwan insurance amount editor">×</button>
+    </header>
+    <form class="edit-expense-form" id="editRecurringAmountForm">
+      <div class="form-group">
+        <label for="recurringAmount">Monthly amount (NTD)</label>
+        <input type="number" id="recurringAmount" min="0.01" step="any" required>
+      </div>
+      <p class="recurring-detail-description" id="recurringAmountPeriod"></p>
+      <div class="category-detail-actions">
+        <button type="button" class="btn btn-secondary" id="cancelRecurringAmountEdit">Cancel</button>
+        <button type="submit" class="btn btn-primary" id="saveRecurringAmount">Save amount</button>
+      </div>
+    </form>
+  </div>
+</dialog>
+
 <!-- Toast -->
 <div class="toast" id="toast"></div>
 
@@ -1381,10 +1410,28 @@
     { item: 'Netflix', amount: 230 },
     { item: 'Google Cloud', amount: 220 },
     { item: 'Apple Cloud', amount: 90 },
-    { item: 'Taiwan insurance', amount: 686 },
+    { item: 'Taiwan insurance', amount: 686, amountOverrideId: 'taiwanInsurance' },
     { item: 'India insurance', amount: 3500, endMonth: 2035 * 12 + 6, detailId: 'indiaInsurance' },
-    { item: 'Laptop EMI', amount: 4450, endMonth: 2027 * 12 + 6, detailId: 'laptopEmi' }
+    { item: 'Macbook EMI', amount: 4450, endMonth: 2027 * 12 + 6, detailId: 'laptopEmi' }
   ];
+
+  const RECURRING_AMOUNT_STORAGE_KEY = 'expense-tracker-taiwan-insurance-amount';
+  let taiwanInsuranceAmountOverride = null;
+  try {
+    const savedOverride = JSON.parse(localStorage.getItem(RECURRING_AMOUNT_STORAGE_KEY) || 'null');
+    if (savedOverride !== null) {
+      const validOverride = Number.isFinite(savedOverride.amount) && savedOverride.amount > 0 &&
+        Number.isInteger(savedOverride.startMonth) &&
+        savedOverride.endMonth === savedOverride.startMonth + 11;
+      if (validOverride) {
+        taiwanInsuranceAmountOverride = savedOverride;
+      } else {
+        console.warn('Ignoring invalid saved Taiwan insurance amount.');
+      }
+    }
+  } catch (error) {
+    console.warn('Could not read saved Taiwan insurance amount:', error);
+  }
 
   function getCatMeta(cat) {
     return CATEGORY_META[cat] || CATEGORY_META['Other'];
@@ -1392,6 +1439,40 @@
 
   function formatAmount(n) {
     return Number(n).toLocaleString();
+  }
+
+  function getRecurringAmount(expense, monthKey) {
+    const override = expense.amountOverrideId === 'taiwanInsurance'
+      ? taiwanInsuranceAmountOverride
+      : null;
+    return override && monthKey >= override.startMonth && monthKey <= override.endMonth
+      ? override.amount
+      : expense.amount;
+  }
+
+  function getTaiwanInsuranceExpense() {
+    return RECURRING_EXPENSES.find(expense => expense.amountOverrideId === 'taiwanInsurance');
+  }
+
+  function openTaiwanInsuranceEdit() {
+    const expense = getTaiwanInsuranceExpense();
+    const now = new Date();
+    const currentMonth = now.getFullYear() * 12 + now.getMonth();
+    const monthToDisplay = taiwanInsuranceAmountOverride &&
+      currentMonth >= taiwanInsuranceAmountOverride.startMonth &&
+      currentMonth <= taiwanInsuranceAmountOverride.endMonth
+      ? taiwanInsuranceAmountOverride.amount
+      : expense.amount;
+    const throughDate = new Date(
+      Math.floor((currentMonth + 11) / 12),
+      (currentMonth + 11) % 12
+    );
+    const throughLabel = throughDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+
+    document.getElementById('recurringAmount').value = monthToDisplay;
+    document.getElementById('recurringAmountPeriod').textContent =
+      `This amount will apply from ${now.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })} through ${throughLabel} (12 months).`;
+    document.getElementById('editRecurringAmountDialog').showModal();
   }
 
   function getRemainingPayments(detailId, now = new Date()) {
@@ -1413,7 +1494,7 @@
 
     const details = detailId === 'laptopEmi'
       ? {
-          title: 'Laptop EMI',
+          title: 'Macbook EMI',
           description: 'Monthly installment plan for your MacBook.',
           fields: [
             ['Monthly installment', `NT$${formatAmount(expense.amount)}`],
@@ -1475,6 +1556,7 @@
         .filter(expense => expense.endMonth === undefined || monthKey <= expense.endMonth)
         .map(expense => ({
           ...expense,
+          amount: getRecurringAmount(expense, monthKey),
           category: 'Bills',
           date: monthDate,
           isRecurring: true
@@ -1549,6 +1631,36 @@
   document.getElementById('closeEditExpense').addEventListener('click', () => editExpenseDialog.close());
   document.getElementById('cancelEditExpense').addEventListener('click', () => editExpenseDialog.close());
   editExpenseDialog.addEventListener('cancel', event => event.preventDefault());
+
+  const editRecurringAmountDialog = document.getElementById('editRecurringAmountDialog');
+  const editRecurringAmountForm = document.getElementById('editRecurringAmountForm');
+  const closeRecurringAmountEdit = () => editRecurringAmountDialog.close();
+  document.getElementById('closeRecurringAmountEdit').addEventListener('click', closeRecurringAmountEdit);
+  document.getElementById('cancelRecurringAmountEdit').addEventListener('click', closeRecurringAmountEdit);
+  editRecurringAmountDialog.addEventListener('cancel', event => event.preventDefault());
+  editRecurringAmountForm.addEventListener('submit', event => {
+    event.preventDefault();
+    const amount = Number(document.getElementById('recurringAmount').value);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      showToast('❌ Enter a valid insurance amount.');
+      return;
+    }
+
+    const startMonth = new Date().getFullYear() * 12 + new Date().getMonth();
+    const updatedOverride = { amount, startMonth, endMonth: startMonth + 11 };
+    try {
+      localStorage.setItem(RECURRING_AMOUNT_STORAGE_KEY, JSON.stringify(updatedOverride));
+    } catch (error) {
+      console.error('Could not save Taiwan insurance amount:', error);
+      showToast('❌ Could not save the insurance amount on this device.');
+      return;
+    }
+
+    taiwanInsuranceAmountOverride = updatedOverride;
+    editRecurringAmountDialog.close();
+    renderDashboard(allData);
+    showToast('✅ Taiwan insurance amount updated for 12 months.');
+  });
 
   function toDateInputValue(value) {
     if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}/.test(value)) {
@@ -1746,6 +1858,10 @@
             <div class="item-meta">${expenseMeta}</div>
           </div>
           <div class="item-amount">NT$${formatAmount(amount)}</div>
+          ${row.amountOverrideId === 'taiwanInsurance' ? `
+            <div class="recurring-amount-actions">
+              <button class="expense-action-btn" type="button" onclick="openTaiwanInsuranceEdit()" title="Edit Taiwan insurance amount" aria-label="Edit Taiwan insurance amount">✏️</button>
+            </div>` : ''}
           ${row.isRecurring ? '' : `
             <div class="expense-actions">
               <button class="expense-action-btn" type="button" onclick="openEditExpense(${row.originalIndex})" title="Edit expense" aria-label="Edit ${row.item}">✏️</button>
