@@ -246,6 +246,12 @@
     }
 
     .cat-card {
+      width: 100%;
+      border: 0;
+      color: inherit;
+      font: inherit;
+      text-align: left;
+      cursor: pointer;
       background: var(--surface);
       border-radius: var(--radius-sm);
       padding: 16px;
@@ -254,6 +260,11 @@
       flex-direction: column;
       gap: 6px;
       transition: transform var(--transition), box-shadow var(--transition);
+    }
+
+    .cat-card:focus-visible {
+      outline: 3px solid var(--primary);
+      outline-offset: 3px;
     }
 
     .cat-card:hover {
@@ -281,6 +292,131 @@
       font-size: 1.05rem;
       font-weight: 700;
       color: var(--text);
+    }
+
+    .category-detail-dialog {
+      width: min(520px, calc(100% - 32px));
+      max-width: none;
+      max-height: min(680px, calc(100dvh - 32px));
+      padding: 0;
+      border: 0;
+      border-radius: var(--radius);
+      color: var(--text);
+      background: var(--surface);
+      box-shadow: var(--shadow-lg);
+    }
+
+    .category-detail-dialog::backdrop {
+      background: rgba(15, 23, 42, .55);
+      backdrop-filter: blur(3px);
+    }
+
+    .category-detail-content {
+      display: flex;
+      flex-direction: column;
+      max-height: min(680px, calc(100dvh - 32px));
+    }
+
+    .category-detail-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 22px 24px 16px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .category-detail-title {
+      font-size: 1.15rem;
+      font-weight: 700;
+    }
+
+    .category-detail-total {
+      margin-top: 5px;
+      color: var(--text-secondary);
+      font-size: .88rem;
+    }
+
+    .category-detail-close {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 36px;
+      height: 36px;
+      flex: 0 0 auto;
+      border: 0;
+      border-radius: 50%;
+      background: var(--surface-hover);
+      color: var(--text-secondary);
+      font-size: 24px;
+      line-height: 1;
+      cursor: pointer;
+    }
+
+    .category-detail-close:hover {
+      background: var(--border);
+      color: var(--text);
+    }
+
+    .category-detail-list {
+      list-style: none;
+      overflow-y: auto;
+      overscroll-behavior: contain;
+      padding: 4px 24px 16px;
+    }
+
+    .category-detail-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      padding: 14px 0;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .category-detail-row:last-child {
+      border-bottom: 0;
+    }
+
+    .category-detail-item {
+      min-width: 0;
+      font-size: .92rem;
+      font-weight: 600;
+      overflow-wrap: anywhere;
+    }
+
+    .category-detail-date {
+      margin-top: 4px;
+      color: var(--text-muted);
+      font-size: .8rem;
+    }
+
+    .category-detail-amount {
+      flex: 0 0 auto;
+      color: var(--danger);
+      font-size: .9rem;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    @media (max-width: 480px) {
+      .category-detail-dialog {
+        width: calc(100% - 24px);
+        max-height: calc(100dvh - 24px);
+      }
+
+      .category-detail-content {
+        max-height: calc(100dvh - 24px);
+      }
+
+      .category-detail-header {
+        padding: 18px 18px 14px;
+      }
+
+      .category-detail-list {
+        padding-right: 18px;
+        padding-left: 18px;
+      }
     }
 
     /* ───────────────── Layout Grid (Desktop) ───────────────── */
@@ -735,6 +871,19 @@
   </main>
 </div>
 
+<dialog class="category-detail-dialog" id="categoryDialog" aria-labelledby="categoryDialogTitle">
+  <div class="category-detail-content">
+    <header class="category-detail-header">
+      <div>
+        <h2 class="category-detail-title" id="categoryDialogTitle"></h2>
+        <p class="category-detail-total" id="categoryDialogTotal"></p>
+      </div>
+      <button class="category-detail-close" id="closeCategoryDialog" type="button" aria-label="Close category expenses">×</button>
+    </header>
+    <ul class="category-detail-list" id="categoryExpenseList"></ul>
+  </div>
+</dialog>
+
 <!-- Toast -->
 <div class="toast" id="toast"></div>
 
@@ -783,6 +932,57 @@
   let viewMonth = new Date().getMonth();
   let viewYear = new Date().getFullYear();
   let allData = [];
+
+  function getMonthlyExpenses(data) {
+    const expenses = data
+      .map((row, originalIndex) => ({ ...row, originalIndex }))
+      .sort((a, b) => new Date(b.date) - new Date(a.date) || b.originalIndex - a.originalIndex);
+    const monthKey = viewYear * 12 + viewMonth;
+    const now = new Date();
+    const currentMonthKey = now.getFullYear() * 12 + now.getMonth();
+
+    if (monthKey >= currentMonthKey) {
+      const monthDate = `${viewYear}-${String(viewMonth + 1).padStart(2, '0')}-01`;
+      const recurringRows = RECURRING_EXPENSES
+        .filter(expense => expense.endMonth === undefined || monthKey <= expense.endMonth)
+        .map(expense => ({
+          ...expense,
+          category: 'Bills',
+          date: monthDate,
+          isRecurring: true
+        }));
+      expenses.push(...recurringRows);
+    }
+
+    return expenses.filter(row => {
+      const rowDate = new Date(row.date);
+      return rowDate.getMonth() === viewMonth && rowDate.getFullYear() === viewYear;
+    });
+  }
+
+  function openCategoryDetails(category, expenses) {
+    const categoryExpenses = expenses.filter(row => row.category === category);
+    const total = categoryExpenses.reduce((sum, row) => sum + (parseFloat(row.amount) || 0), 0);
+    document.getElementById('categoryDialogTitle').textContent = `${getCatMeta(category).icon} ${category}`;
+    document.getElementById('categoryDialogTotal').textContent =
+      `${categoryExpenses.length} expense${categoryExpenses.length === 1 ? '' : 's'} · NT$${formatAmount(total)}`;
+    document.getElementById('categoryExpenseList').innerHTML = categoryExpenses.map(row => {
+      const rowDate = new Date(row.date);
+      return `
+        <li class="category-detail-row">
+          <div>
+            <div class="category-detail-item">${row.item}</div>
+            <div class="category-detail-date">${rowDate.toLocaleDateString('default', { month: 'short', day: 'numeric', year: 'numeric' })}${row.isRecurring ? ' · Monthly' : ''}</div>
+          </div>
+          <div class="category-detail-amount">NT$${formatAmount(parseFloat(row.amount) || 0)}</div>
+        </li>`;
+    }).join('');
+    document.getElementById('categoryDialog').showModal();
+  }
+
+  const categoryDialog = document.getElementById('categoryDialog');
+  document.getElementById('closeCategoryDialog').addEventListener('click', () => categoryDialog.close());
+  categoryDialog.addEventListener('cancel', event => event.preventDefault());
 
   function updateCurrentDateInfo() {
     const now = new Date();
@@ -902,49 +1102,28 @@
     let catTotals = {};
     let listHtml = "";
 
-    // Show dated expenses newest first, followed by recurring fixed bills.
-    const sorted = data
-      .map((row, originalIndex) => ({ ...row, originalIndex }))
-      .sort((a, b) => new Date(b.date) - new Date(a.date) || b.originalIndex - a.originalIndex);
-    const monthKey = viewYear * 12 + viewMonth;
-    const now = new Date();
-    const currentMonthKey = now.getFullYear() * 12 + now.getMonth();
-    if (monthKey >= currentMonthKey) {
-      const monthDate = `${viewYear}-${String(viewMonth + 1).padStart(2, '0')}-01`;
-      const recurringRows = RECURRING_EXPENSES
-        .filter(expense => expense.endMonth === undefined || monthKey <= expense.endMonth)
-        .map(expense => ({
-          ...expense,
-          category: 'Bills',
-          date: monthDate,
-          isRecurring: true
-        }));
-      sorted.push(...recurringRows);
-    }
-
-    sorted.forEach((row) => {
+    const monthlyExpenses = getMonthlyExpenses(data);
+    monthlyExpenses.forEach((row) => {
       const rowDate = new Date(row.date);
       const amount = parseFloat(row.amount) || 0;
       const meta = getCatMeta(row.category);
 
-      if (rowDate.getMonth() === viewMonth && rowDate.getFullYear() === viewYear) {
-        monthTotal += amount;
-        catTotals[row.category] = (catTotals[row.category] || 0) + amount;
+      monthTotal += amount;
+      catTotals[row.category] = (catTotals[row.category] || 0) + amount;
 
-        listHtml += `
-          <li class="swipe-container${row.isRecurring ? ' recurring-expense' : ''}"${row.isRecurring ? '' : ` data-row="${row.originalIndex}"`}>
-            ${row.isRecurring ? '' : '<div class="delete-bg"><span class="delete-icon">🗑️</span> Delete</div>'}
-            <div class="expense-item">
-              <div class="item-icon" style="background:${meta.color}15; color:${meta.color};">${meta.icon}</div>
-              <div class="item-details">
-                <div class="item-name">${row.item}</div>
-                <div class="item-meta">${row.category}${row.isRecurring ? ' · Monthly' : ''} · ${rowDate.toLocaleDateString('default', { month: 'short', day: 'numeric', year: 'numeric' })}</div>
-              </div>
-              <div class="item-amount">-NT$${formatAmount(amount)}</div>
-              ${row.isRecurring ? '' : `<button class="delete-btn-desktop" onclick="deleteExpense(${row.originalIndex}, this)" title="Delete">🗑️</button>`}
+      listHtml += `
+        <li class="swipe-container${row.isRecurring ? ' recurring-expense' : ''}"${row.isRecurring ? '' : ` data-row="${row.originalIndex}"`}>
+          ${row.isRecurring ? '' : '<div class="delete-bg"><span class="delete-icon">🗑️</span> Delete</div>'}
+          <div class="expense-item">
+            <div class="item-icon" style="background:${meta.color}15; color:${meta.color};">${meta.icon}</div>
+            <div class="item-details">
+              <div class="item-name">${row.item}</div>
+              <div class="item-meta">${row.category}${row.isRecurring ? ' · Monthly' : ''} · ${rowDate.toLocaleDateString('default', { month: 'short', day: 'numeric', year: 'numeric' })}</div>
             </div>
-          </li>`;
-      }
+            <div class="item-amount">-NT$${formatAmount(amount)}</div>
+            ${row.isRecurring ? '' : `<button class="delete-btn-desktop" onclick="deleteExpense(${row.originalIndex}, this)" title="Delete">🗑️</button>`}
+          </div>
+        </li>`;
     });
 
     // Total
@@ -952,16 +1131,20 @@
       `<span class="currency">NT$</span>${formatAmount(monthTotal)}`;
 
     // Category cards
-    const catHtml = Object.entries(catTotals).map(([cat, total]) => {
+    const categories = Object.entries(catTotals);
+    const catHtml = categories.map(([cat, total], index) => {
       const meta = getCatMeta(cat);
       return `
-        <div class="cat-card">
+        <button class="cat-card" type="button" data-category-index="${index}">
           <div class="cat-icon" style="background:${meta.color}15; color:${meta.color};">${meta.icon}</div>
           <div class="cat-name">${cat}</div>
           <div class="cat-amount">NT$${formatAmount(total)}</div>
-        </div>`;
+        </button>`;
     }).join('');
     document.getElementById('categoryTotals').innerHTML = catHtml;
+    document.querySelectorAll('#categoryTotals .cat-card').forEach((card, index) => {
+      card.addEventListener('click', () => openCategoryDetails(categories[index][0], monthlyExpenses));
+    });
 
     // Expense list
     if (listHtml) {
