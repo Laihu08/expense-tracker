@@ -463,6 +463,7 @@
     .category-detail-content {
       display: flex;
       flex-direction: column;
+      min-height: 0;
       max-height: min(680px, calc(100dvh - 32px));
     }
 
@@ -578,8 +579,38 @@
     }
 
     .recurring-detail-content {
+      flex: 1 1 auto;
       padding: 20px 24px 24px;
       overflow-y: auto;
+      min-height: 0;
+      overscroll-behavior: contain;
+    }
+
+    .recurring-detail-footer {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+      flex: 0 0 auto;
+      padding: 12px 24px 18px;
+      border-top: 1px solid var(--border);
+      background: var(--surface);
+    }
+
+    .recurring-detail-footer[hidden] {
+      display: none;
+    }
+
+    .recurring-detail-footer .btn {
+      width: 100%;
+      min-width: 0;
+      box-sizing: border-box;
+      white-space: normal;
+      line-height: 1.3;
+    }
+
+    .recurring-detail-footer .btn[type="submit"] {
+      grid-column: 1 / -1;
+      grid-row: 1;
     }
 
     .recurring-detail-description {
@@ -639,10 +670,109 @@
       display: none;
     }
 
-    .recurring-detail-editor .category-detail-actions {
+    .recurring-detail-editor-header {
       display: flex;
+      align-items: center;
+      justify-content: space-between;
       gap: 12px;
-      margin-top: 8px;
+      margin-bottom: 14px;
+    }
+
+    .recurring-detail-editor-title {
+      margin: 0;
+      font-size: .95rem;
+      font-weight: 700;
+    }
+
+    .recurring-detail-fields-editor {
+      display: grid;
+      gap: 12px;
+    }
+
+    .recurring-detail-field-editor {
+      min-width: 0;
+      padding: 14px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      background: var(--surface-hover);
+    }
+
+    .recurring-detail-field-editor-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+
+    .recurring-detail-field-editor-title {
+      color: var(--text-secondary);
+      font-size: .78rem;
+      font-weight: 700;
+    }
+
+    .recurring-detail-field-remove {
+      flex: 0 0 auto;
+      padding: 4px 8px;
+      border: 0;
+      border-radius: 6px;
+      background: var(--surface);
+      color: var(--text-secondary);
+      font: inherit;
+      font-size: .78rem;
+      cursor: pointer;
+    }
+
+    .recurring-detail-field-remove:hover {
+      background: var(--primary-light);
+      color: var(--primary);
+    }
+
+    .recurring-detail-field-remove:disabled {
+      opacity: .5;
+      cursor: not-allowed;
+    }
+
+    .recurring-detail-field-editor label {
+      display: block;
+      margin: 0 0 5px;
+      color: var(--text-secondary);
+      font-size: .78rem;
+      font-weight: 600;
+    }
+
+    .recurring-detail-field-editor input {
+      width: 100%;
+      min-width: 0;
+      box-sizing: border-box;
+      padding: 10px 11px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--surface);
+      color: var(--text);
+      font: inherit;
+      font-size: .88rem;
+    }
+
+    .recurring-detail-field-editor input:focus {
+      outline: 2px solid var(--primary);
+      outline-offset: 1px;
+    }
+
+    .recurring-detail-month-range {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      gap: 10px;
+    }
+
+    .recurring-detail-computed {
+      padding: 10px 12px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--surface);
+      color: var(--text);
+      font-size: .88rem;
+      font-weight: 600;
     }
 
     .expense-actions {
@@ -669,12 +799,6 @@
     .expense-action-btn:hover {
       background: var(--primary-light);
       color: var(--primary);
-    }
-
-    .recurring-amount-actions {
-      display: flex;
-      align-items: center;
-      flex: 0 0 auto;
     }
 
     .expense-actions .delete-btn-desktop {
@@ -751,6 +875,16 @@
       .recurring-detail-grid {
         grid-template-columns: 1fr;
       }
+
+      .recurring-detail-footer {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        padding-right: 18px;
+        padding-left: 18px;
+      }
+
+      .recurring-detail-month-range {
+        grid-template-columns: 1fr;
+      }
     }
 
     /* ───────────────── Layout Grid (Desktop) ───────────────── */
@@ -803,6 +937,7 @@
     }
 
     .form-group input,
+    .form-group textarea,
     .form-group select {
       width: 100%;
       padding: 12px 14px;
@@ -819,9 +954,15 @@
     }
 
     .form-group input:focus,
+    .form-group textarea:focus,
     .form-group select:focus {
       border-color: var(--primary);
       box-shadow: 0 0 0 3px rgba(79,70,229,.12);
+    }
+
+    .form-group textarea {
+      min-height: 72px;
+      resize: vertical;
     }
 
     .form-group select {
@@ -1299,6 +1440,7 @@
       <button class="category-detail-close" id="closeRecurringDetail" type="button" aria-label="Close recurring expense details">×</button>
     </header>
     <div id="recurringDetailContent" class="recurring-detail-content"></div>
+    <footer id="recurringDetailFooter" class="recurring-detail-footer"></footer>
   </div>
 </dialog>
 
@@ -1409,8 +1551,10 @@
   ];
 
   const RECURRING_AMOUNT_STORAGE_KEY = 'expense-tracker-recurring-amounts';
+  const RECURRING_DETAILS_STORAGE_KEY = 'expense-tracker-recurring-details';
   const LEGACY_TAIWAN_AMOUNT_STORAGE_KEY = 'expense-tracker-taiwan-insurance-amount';
   let recurringAmountOverrides = {};
+  let recurringDetailOverrides = {};
   try {
     const savedOverrides = JSON.parse(localStorage.getItem(RECURRING_AMOUNT_STORAGE_KEY) || '{}');
     if (savedOverrides && typeof savedOverrides === 'object' && !Array.isArray(savedOverrides)) {
@@ -1437,6 +1581,22 @@
   } catch (error) {
     console.warn('Could not read saved recurring expense amounts:', error);
   }
+  try {
+    const savedDetails = JSON.parse(localStorage.getItem(RECURRING_DETAILS_STORAGE_KEY) || '{}');
+    if (savedDetails && typeof savedDetails === 'object' && !Array.isArray(savedDetails)) {
+      recurringDetailOverrides = savedDetails;
+    } else {
+      console.warn('Ignoring invalid saved recurring expense details.');
+    }
+  } catch (error) {
+    console.warn('Could not read saved recurring expense details:', error);
+  }
+  RECURRING_EXPENSES.forEach(expense => {
+    const savedTitle = recurringDetailOverrides[expense.detailId]?.title;
+    if (typeof savedTitle === 'string' && savedTitle.trim()) {
+      expense.item = savedTitle;
+    }
+  });
 
   function getCatMeta(cat) {
     return CATEGORY_META[cat] || CATEGORY_META['Other'];
@@ -1453,86 +1613,255 @@
       : expense.amount;
   }
 
-  function getRemainingPayments(detailId, now = new Date()) {
+  function getMonthKeyInput(monthKey) {
+    const year = Math.floor(monthKey / 12);
+    const month = String(monthKey % 12 + 1).padStart(2, '0');
+    return `${year}-${month}`;
+  }
+
+  function formatMonthKey(monthKey) {
+    return new Date(Math.floor(monthKey / 12), monthKey % 12)
+      .toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+  }
+
+  function escapeHtml(value) {
+    return String(value).replace(/[&<>"']/g, character => ({
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      '"': '&quot;',
+      "'": '&#39;'
+    })[character]);
+  }
+
+  function getRemainingPayments(detailId, now = new Date(), fields = []) {
     const currentMonth = now.getFullYear() * 12 + now.getMonth();
-    if (detailId === 'macbookEmi') {
-      return Math.max(0, (2027 * 12 + 6) - currentMonth);
-    }
-    if (detailId === 'indiaInsurance') {
-      const startMonth = 2025 * 12 + 6;
-      const endMonth = 2035 * 12 + 6;
-      return Math.max(0, endMonth - Math.max(startMonth, currentMonth) + 1);
-    }
-    return 0;
+    const paymentField = fields.find(field => field.type === 'computedPayments');
+    if (!paymentField) return 0;
+
+    const period = paymentField.periodKey
+      ? fields.find(field => field.key === paymentField.periodKey)
+      : null;
+    const startField = paymentField.startKey
+      ? fields.find(field => field.key === paymentField.startKey)
+      : null;
+    const endField = paymentField.endKey
+      ? fields.find(field => field.key === paymentField.endKey)
+      : null;
+    const startMonth = period?.startMonth ?? startField?.monthKey;
+    const endMonth = period?.endMonth ?? endField?.monthKey;
+    if (!Number.isInteger(startMonth) || !Number.isInteger(endMonth)) return 0;
+
+    const firstUnpaidMonth = Math.max(startMonth, currentMonth + (paymentField.countCurrentMonth ? 0 : 1));
+    return Math.max(0, endMonth - firstUnpaidMonth + 1);
   }
 
   let activeRecurringDetailId = null;
+  let recurringDetailsDraft = null;
 
-  function renderRecurringDetails(detailId) {
+  function getDefaultRecurringDetails(expense, monthlyAmount) {
+    const common = [
+      { key: 'monthlyAmount', label: 'Monthly amount', type: 'amount' },
+      { key: 'category', label: 'Category', type: 'text', value: 'Bills · Monthly' }
+    ];
+
+    if (expense.detailId === 'macbookEmi') {
+      return {
+        title: expense.item,
+        description: 'Monthly installment plan for your MacBook.',
+        fields: [
+          { key: 'monthlyAmount', label: 'Monthly installment', type: 'amount' },
+          { key: 'category', label: 'Category', type: 'text', value: 'Bills · Monthly' },
+          { key: 'purchased', label: 'Purchased', type: 'month', monthKey: 2026 * 12 + 7 },
+          {
+            key: 'emiPeriod',
+            label: 'EMI period',
+            type: 'monthRange',
+            startMonth: 2026 * 12 + 7,
+            endMonth: 2027 * 12 + 6
+          },
+          {
+            key: 'remainingEmis',
+            label: 'Remaining EMIs',
+            type: 'computedPayments',
+            periodKey: 'emiPeriod',
+            countCurrentMonth: false
+          }
+        ]
+      };
+    }
+
+    if (expense.detailId === 'indiaInsurance') {
+      return {
+        title: expense.item,
+        description: 'Monthly premium for your TATA AIA Life Insurance policy.',
+        fields: [
+          { key: 'monthlyAmount', label: 'Monthly premium', type: 'amount' },
+          { key: 'category', label: 'Category', type: 'text', value: 'Bills · Monthly' },
+          { key: 'insurer', label: 'Insurer', type: 'text', value: 'TATA AIA Life Insurance' },
+          { key: 'policyStarted', label: 'Policy started', type: 'month', monthKey: 2025 * 12 + 6 },
+          {
+            key: 'premiumsThrough',
+            label: 'Premiums through',
+            type: 'month',
+            monthKey: 2035 * 12 + 6
+          },
+          {
+            key: 'paymentsRemaining',
+            label: 'Payments remaining',
+            type: 'computedPayments',
+            startKey: 'policyStarted',
+            endKey: 'premiumsThrough',
+            countCurrentMonth: true
+          }
+        ]
+      };
+    }
+
+    return {
+      title: expense.item,
+      description: `Monthly recurring bill for ${expense.item}.`,
+      fields: common.map(field => field.type === 'amount'
+        ? { ...field, label: 'Monthly amount', value: monthlyAmount }
+        : field)
+    };
+  }
+
+  function getRecurringDetails(expense, monthlyAmount) {
+    const defaults = getDefaultRecurringDetails(expense, monthlyAmount);
+    const saved = recurringDetailOverrides[expense.detailId];
+    if (!saved || typeof saved !== 'object') return defaults;
+
+    const defaultFields = new Map(defaults.fields.map(field => [field.key, field]));
+    const fields = Array.isArray(saved.fields) ? saved.fields.slice(0, 40) : defaults.fields;
+    return {
+      title: typeof saved.title === 'string' ? saved.title : defaults.title,
+      description: typeof saved.description === 'string' ? saved.description : defaults.description,
+      fields: fields.map(field => {
+        const baseField = defaultFields.get(field.key);
+        const merged = baseField ? { ...baseField, ...field } : field;
+        return {
+          ...merged,
+          value: merged.type === 'amount' ? monthlyAmount : merged.value
+        };
+      })
+    };
+  }
+
+  function renderRecurringFieldEditor(field, monthlyAmount, index) {
+    const key = escapeHtml(field.key);
+    const isPaymentDependency = recurringDetailsDraft.fields.some(candidate =>
+      candidate.type === 'computedPayments' &&
+      (candidate.periodKey === field.key || candidate.startKey === field.key || candidate.endKey === field.key)
+    );
+    const cannotRemove = field.type === 'amount' || isPaymentDependency;
+    let valueEditor;
+    if (field.type === 'amount') {
+      valueEditor = `
+        <label for="recurringFieldAmount${index}">Monthly amount (NTD)</label>
+        <input id="recurringFieldAmount${index}" data-field-property="amount" type="number" min="0.01" step="any" value="${recurringDetailsDraft?.amount ?? monthlyAmount}" required>`;
+    } else if (field.type === 'month') {
+      valueEditor = `
+        <label for="recurringFieldMonth${index}">Month</label>
+        <input id="recurringFieldMonth${index}" data-field-property="monthKey" type="month" value="${getMonthKeyInput(field.monthKey)}" required>`;
+    } else if (field.type === 'monthRange') {
+      valueEditor = `
+        <div class="recurring-detail-month-range">
+          <div>
+            <label for="recurringFieldStart${index}">Starts</label>
+            <input id="recurringFieldStart${index}" data-field-property="startMonth" type="month" value="${getMonthKeyInput(field.startMonth)}" required>
+          </div>
+          <div>
+            <label for="recurringFieldEnd${index}">Ends</label>
+            <input id="recurringFieldEnd${index}" data-field-property="endMonth" type="month" value="${getMonthKeyInput(field.endMonth)}" required>
+          </div>
+        </div>`;
+    } else if (field.type === 'computedPayments') {
+      valueEditor = `
+        <label>Calculated automatically</label>
+        <div class="recurring-detail-computed">${getRemainingPayments(activeRecurringDetailId, new Date(), recurringDetailsDraft?.fields || [])} payments; updates each month</div>`;
+    } else {
+      valueEditor = `
+        <label for="recurringFieldValue${index}">Value</label>
+        <input id="recurringFieldValue${index}" data-field-property="value" type="text" maxlength="500" value="${escapeHtml(field.value || '')}" required>`;
+    }
+
+    return `
+      <div class="recurring-detail-field-editor" data-field-key="${key}" data-field-type="${escapeHtml(field.type)}">
+        <div class="recurring-detail-field-editor-header">
+          <span class="recurring-detail-field-editor-title">Detail ${index + 1}</span>
+          <button type="button" class="recurring-detail-field-remove" data-action="remove-detail"${cannotRemove ? ' disabled aria-label="This block is required to calculate recurring bill details"' : ''}>Remove</button>
+        </div>
+        <label for="recurringFieldLabel${index}">Block title</label>
+        <input id="recurringFieldLabel${index}" data-field-property="label" type="text" maxlength="80" value="${escapeHtml(field.label)}" required>
+        ${valueEditor}
+      </div>`;
+  }
+
+  function renderRecurringDetails(detailId, preserveScroll = false) {
     const expense = RECURRING_EXPENSES.find(row => row.detailId === detailId);
     if (!expense) return;
 
+    const content = document.getElementById('recurringDetailContent');
+    const scrollTop = preserveScroll ? content.scrollTop : 0;
     const currentMonth = new Date().getFullYear() * 12 + new Date().getMonth();
     const monthlyAmount = getRecurringAmount(expense, currentMonth);
-    const details = detailId === 'macbookEmi'
-      ? {
-          description: 'Monthly installment plan for your MacBook.',
-          fields: [
-            ['Monthly installment', `NT$${formatAmount(monthlyAmount)}`],
-            ['Category', 'Bills · Monthly'],
-            ['Purchased', 'August 2026'],
-            ['EMI period', 'August 2026 – July 2027'],
-            ['Remaining EMIs', `${getRemainingPayments(detailId)} EMIs`]
-          ]
-        }
-      : detailId === 'indiaInsurance'
-        ? {
-          description: 'Monthly premium for your TATA AIA Life Insurance policy.',
-          fields: [
-            ['Monthly premium', `NT$${formatAmount(monthlyAmount)}`],
-            ['Category', 'Bills · Monthly'],
-            ['Insurer', 'TATA AIA Life Insurance'],
-            ['Policy started', 'July 2025'],
-            ['Premiums through', 'July 2035'],
-            ['Payments remaining', `${getRemainingPayments(detailId)} monthly payments`]
-          ]
-        }
-        : {
-          description: `Monthly recurring bill for ${expense.item}.`,
-          fields: [
-            ['Monthly amount', `NT$${formatAmount(monthlyAmount)}`],
-            ['Category', 'Bills · Monthly']
-          ]
-        };
+    const details = recurringDetailsDraft || getRecurringDetails(expense, monthlyAmount);
+    const visibleFields = details.fields.filter(field => !field.hidden);
 
-    document.getElementById('recurringDetailTitle').textContent = expense.item;
-    document.getElementById('recurringDetailContent').innerHTML = `
-      <p class="recurring-detail-description">${details.description}</p>
-      <div class="recurring-detail-grid">
-        ${details.fields.map(([label, value]) => `
-          <div class="recurring-detail-field${label.includes('remaining') || label === 'Remaining EMIs' ? ' remaining' : ''}">
-            <span class="recurring-detail-label">${label}</span>
-            <span class="recurring-detail-value">${value}</span>
-          </div>`).join('')}
-      </div>
-      <div class="recurring-detail-editor-actions">
-        <button class="btn btn-secondary" type="button" id="editRecurringAmountButton">Edit monthly amount</button>
-      </div>
-      <form class="recurring-detail-editor" id="recurringAmountForm" hidden>
-        <div class="form-group">
-          <label for="recurringAmountInput">Monthly amount (NTD)</label>
-          <input type="number" id="recurringAmountInput" min="0.01" step="any" value="${monthlyAmount}" required>
-        </div>
-        <p class="recurring-detail-description">This amount applies from this month onward until you change it again.</p>
-        <div class="category-detail-actions">
-          <button type="button" class="btn btn-secondary" id="cancelRecurringAmountEdit">Cancel</button>
-          <button type="submit" class="btn btn-primary" id="saveRecurringAmount">Save amount</button>
-        </div>
-      </form>`;
+    document.getElementById('recurringDetailTitle').textContent = details.title;
+    content.innerHTML = `
+      ${recurringDetailsDraft ? '' : `<p class="recurring-detail-description">${escapeHtml(details.description)}</p>`}
+      ${recurringDetailsDraft ? `
+        <form class="recurring-detail-editor" id="recurringDetailsForm">
+          <div class="form-group">
+            <label for="recurringExpenseTitleInput">Expense name</label>
+            <input id="recurringExpenseTitleInput" name="title" type="text" maxlength="80" value="${escapeHtml(details.title)}" required>
+          </div>
+          <div class="form-group">
+            <label for="recurringExpenseDescriptionInput">Description</label>
+            <textarea id="recurringExpenseDescriptionInput" name="description" rows="2" maxlength="240" required>${escapeHtml(details.description)}</textarea>
+          </div>
+          <div class="recurring-detail-editor-header"><h3 class="recurring-detail-editor-title">Detail blocks</h3></div>
+          <div class="recurring-detail-fields-editor">
+            ${details.fields.map((field, index) => renderRecurringFieldEditor(field, monthlyAmount, index)).join('')}
+          </div>
+        </form>` : `
+        <div class="recurring-detail-grid">
+          ${visibleFields.map(field => {
+            let value;
+            if (field.type === 'amount') {
+              value = `NT$${formatAmount(monthlyAmount)}`;
+            } else if (field.type === 'month') {
+              value = formatMonthKey(field.monthKey);
+            } else if (field.type === 'monthRange') {
+              value = `${formatMonthKey(field.startMonth)} – ${formatMonthKey(field.endMonth)}`;
+            } else if (field.type === 'computedPayments') {
+              const count = getRemainingPayments(detailId, new Date(), details.fields);
+              value = `${count} ${detailId === 'macbookEmi' ? 'EMIs' : 'monthly payments'}`;
+            } else {
+              value = field.value;
+            }
+            const isComputed = field.type === 'computedPayments';
+            return `
+              <div class="recurring-detail-field${isComputed ? ' remaining' : ''}">
+                <span class="recurring-detail-label">${escapeHtml(field.label)}</span>
+                <span class="recurring-detail-value">${escapeHtml(value)}</span>
+              </div>`;
+          }).join('')}
+        </div>`}`;
+
+    document.getElementById('recurringDetailFooter').innerHTML = recurringDetailsDraft
+      ? `<button type="submit" form="recurringDetailsForm" class="btn btn-primary">Save details</button>
+         <button type="button" class="btn btn-secondary" data-action="add-detail">Add detail block</button>
+         <button type="button" class="btn btn-secondary" data-action="cancel-edit">Cancel</button>`
+      : '<button class="btn btn-secondary" type="button" id="editRecurringAmountButton">Edit details</button>';
+    content.scrollTop = scrollTop;
   }
 
   function openRecurringDetails(detailId) {
     activeRecurringDetailId = detailId;
+    recurringDetailsDraft = null;
     renderRecurringDetails(detailId);
     document.getElementById('recurringDetailDialog').showModal();
   }
@@ -1613,7 +1942,7 @@
       return `
         <li class="category-detail-row">
           <div>
-            <div class="category-detail-item">${row.item}</div>
+            <div class="category-detail-item">${escapeHtml(row.item)}</div>
             <div class="category-detail-date">${rowDate.toLocaleDateString('default', { month: 'short', day: 'numeric', year: 'numeric' })}${row.isRecurring ? ' · Monthly' : ''}</div>
           </div>
           <div class="category-detail-amount">NT$${formatAmount(parseFloat(row.amount) || 0)}</div>
@@ -1632,44 +1961,126 @@
   document.getElementById('closeRecurringDetail').addEventListener('click', () => recurringDetailDialog.close());
   recurringDetailDialog.addEventListener('cancel', event => event.preventDefault());
   const recurringDetailContent = document.getElementById('recurringDetailContent');
-  recurringDetailContent.addEventListener('click', event => {
+  function readRecurringDetailsForm() {
+    const form = document.getElementById('recurringDetailsForm');
+    const title = document.getElementById('recurringExpenseTitleInput').value.trim();
+    const description = document.getElementById('recurringExpenseDescriptionInput').value.trim();
+    let amount = null;
+    const fields = recurringDetailsDraft.fields.map(field => {
+      const row = [...form.querySelectorAll('.recurring-detail-field-editor')]
+        .find(element => element.dataset.fieldKey === field.key);
+      if (!row) return null;
+
+      const updated = {
+        ...field,
+        label: row.querySelector('[data-field-property="label"]').value.trim()
+      };
+      if (field.type === 'amount') {
+        amount = Number(row.querySelector('[data-field-property="amount"]').value);
+      } else if (field.type === 'text') {
+        updated.value = row.querySelector('[data-field-property="value"]').value.trim();
+      } else if (field.type === 'month') {
+        updated.monthKey = parseMonthKeyInput(row.querySelector('[data-field-property="monthKey"]').value);
+      } else if (field.type === 'monthRange') {
+        updated.startMonth = parseMonthKeyInput(row.querySelector('[data-field-property="startMonth"]').value);
+        updated.endMonth = parseMonthKeyInput(row.querySelector('[data-field-property="endMonth"]').value);
+      }
+      return updated;
+    }).filter(Boolean);
+
+    return { title, description, fields, amount };
+  }
+
+  function parseMonthKeyInput(value) {
+    const match = /^(\d{4})-(\d{2})$/.exec(value);
+    if (!match) return NaN;
+    const [, year, month] = match.map(Number);
+    return year * 12 + month - 1;
+  }
+
+  recurringDetailDialog.addEventListener('click', event => {
     if (event.target.closest('#editRecurringAmountButton')) {
-      document.getElementById('editRecurringAmountButton').hidden = true;
-      const form = document.getElementById('recurringAmountForm');
-      form.hidden = false;
-      document.getElementById('recurringAmountInput').focus();
-    } else if (event.target.closest('#cancelRecurringAmountEdit')) {
+      const expense = RECURRING_EXPENSES.find(row => row.detailId === activeRecurringDetailId);
+      const now = new Date();
+      const monthlyAmount = getRecurringAmount(expense, now.getFullYear() * 12 + now.getMonth());
+      recurringDetailsDraft = getRecurringDetails(expense, monthlyAmount);
       renderRecurringDetails(activeRecurringDetailId);
+    } else if (event.target.closest('[data-action="cancel-edit"]')) {
+      recurringDetailsDraft = null;
+      renderRecurringDetails(activeRecurringDetailId);
+    } else if (event.target.closest('[data-action="add-detail"]')) {
+      const currentForm = readRecurringDetailsForm();
+      recurringDetailsDraft = {
+        ...currentForm,
+        fields: [
+          ...currentForm.fields,
+          {
+            key: `custom_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+            label: 'New detail',
+            value: '',
+            type: 'text'
+          }
+        ]
+      };
+      renderRecurringDetails(activeRecurringDetailId, true);
+      recurringDetailContent.scrollTop = recurringDetailContent.scrollHeight;
+      const valueInput = document.querySelector('.recurring-detail-field-editor:last-child [data-field-property="value"]');
+      valueInput?.focus();
+    } else if (event.target.closest('[data-action="remove-detail"]')) {
+      const currentForm = readRecurringDetailsForm();
+      const key = event.target.closest('.recurring-detail-field-editor').dataset.fieldKey;
+      recurringDetailsDraft = {
+        ...currentForm,
+        fields: currentForm.fields.filter(field => field.key !== key)
+      };
+      renderRecurringDetails(activeRecurringDetailId, true);
     }
   });
   recurringDetailContent.addEventListener('submit', event => {
-    if (event.target.id !== 'recurringAmountForm') return;
+    if (event.target.id !== 'recurringDetailsForm') return;
     event.preventDefault();
 
     const expense = RECURRING_EXPENSES.find(row => row.detailId === activeRecurringDetailId);
-    const amount = Number(document.getElementById('recurringAmountInput').value);
-    if (!expense || !Number.isFinite(amount) || amount <= 0) {
-      showToast('❌ Enter a valid monthly amount.');
+    const details = readRecurringDetailsForm();
+    const hasInvalidField = !details.title || !details.description ||
+      details.fields.some(field => !field.label ||
+        (field.type === 'text' && !field.value) ||
+        (field.type === 'month' && !Number.isInteger(field.monthKey)) ||
+        (field.type === 'monthRange' &&
+          (!Number.isInteger(field.startMonth) || !Number.isInteger(field.endMonth) || field.startMonth > field.endMonth)));
+    if (!expense || hasInvalidField || !Number.isFinite(details.amount) || details.amount <= 0) {
+      showToast('❌ Check the detail blocks and enter a valid monthly amount.');
       return;
     }
 
     const startMonth = new Date().getFullYear() * 12 + new Date().getMonth();
     const updatedOverrides = {
       ...recurringAmountOverrides,
-      [activeRecurringDetailId]: { amount, startMonth }
+      [activeRecurringDetailId]: { amount: details.amount, startMonth }
+    };
+    const updatedDetailOverrides = {
+      ...recurringDetailOverrides,
+      [activeRecurringDetailId]: {
+        title: details.title,
+        description: details.description,
+        fields: details.fields
+      }
     };
     try {
       localStorage.setItem(RECURRING_AMOUNT_STORAGE_KEY, JSON.stringify(updatedOverrides));
+      localStorage.setItem(RECURRING_DETAILS_STORAGE_KEY, JSON.stringify(updatedDetailOverrides));
     } catch (error) {
-      console.error(`Could not save ${expense.item} amount:`, error);
-      showToast('❌ Could not save this amount on this device.');
+      console.error(`Could not save ${expense.item} recurring details:`, error);
+      showToast('❌ Could not save these details on this device.');
       return;
     }
 
     recurringAmountOverrides = updatedOverrides;
+    recurringDetailOverrides = updatedDetailOverrides;
+    recurringDetailsDraft = null;
     renderRecurringDetails(activeRecurringDetailId);
     renderDashboard(allData);
-    showToast(`✅ ${expense.item} amount updated.`);
+    showToast(`✅ ${details.title} details saved.`);
   });
 
   let editingExpenseIndex = null;
@@ -1859,6 +2270,9 @@
     const rowDate = new Date(row.date);
     const amount = parseFloat(row.amount) || 0;
     const meta = getCatMeta(row.category);
+    const expenseName = row.isRecurring && row.detailId
+      ? recurringDetailOverrides[row.detailId]?.title || row.item
+      : row.item;
     const expenseMeta = row.isRecurring
       ? `${row.category}<span class="recurring-monthly-badge">Monthly</span>`
       : `${row.category} · ${rowDate.toLocaleDateString('default', { month: 'short', day: 'numeric', year: 'numeric' })}`;
@@ -1870,15 +2284,15 @@
           <div class="item-icon" style="background:${meta.color}15; color:${meta.color};">${meta.icon}</div>
           <div class="item-details">
             ${row.isRecurring && row.detailId
-              ? `<button class="item-name recurring-detail-trigger" type="button" onclick="openRecurringDetails('${row.detailId}')" aria-haspopup="dialog">${row.item}</button>`
-              : `<div class="item-name">${row.item}</div>`}
+              ? `<button class="item-name recurring-detail-trigger" type="button" onclick="openRecurringDetails('${row.detailId}')" aria-haspopup="dialog">${escapeHtml(expenseName)}</button>`
+              : `<div class="item-name">${escapeHtml(expenseName)}</div>`}
             <div class="item-meta">${expenseMeta}</div>
           </div>
           <div class="item-amount">NT$${formatAmount(amount)}</div>
           ${row.isRecurring ? '' : `
             <div class="expense-actions">
-              <button class="expense-action-btn" type="button" onclick="openEditExpense(${row.originalIndex})" title="Edit expense" aria-label="Edit ${row.item}">✏️</button>
-              <button class="delete-btn-desktop" onclick="deleteExpense(${row.originalIndex}, this)" title="Delete" aria-label="Delete ${row.item}">🗑️</button>
+              <button class="expense-action-btn" type="button" onclick="openEditExpense(${row.originalIndex})" title="Edit expense" aria-label="Edit ${escapeHtml(expenseName)}">✏️</button>
+              <button class="delete-btn-desktop" onclick="deleteExpense(${row.originalIndex}, this)" title="Delete" aria-label="Delete ${escapeHtml(expenseName)}">🗑️</button>
             </div>`}
         </div>
       </li>`;
