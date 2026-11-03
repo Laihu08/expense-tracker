@@ -122,6 +122,12 @@
       margin-top: 4px;
     }
 
+    .current-date-info {
+      margin-top: 10px;
+      font-size: .82rem;
+      color: rgba(255,255,255,.82);
+    }
+
     .month-nav .nav-btn {
       width: 36px;
       height: 36px;
@@ -617,6 +623,7 @@
         <button class="nav-btn" id="nextMonth" onclick="changeMonth(1)">›</button>
         <button class="today-btn" id="todayBtn" onclick="goToCurrentMonth()">Today</button>
       </div>
+      <div class="current-date-info" id="currentDateInfo" aria-live="polite"></div>
     </div>
   </header>
 
@@ -737,6 +744,20 @@
   let viewYear = new Date().getFullYear();
   let allData = [];
 
+  function updateCurrentDateInfo() {
+    const now = new Date();
+    const daysLeft = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate() - now.getDate();
+    const todayLabel = now.toLocaleDateString('default', {
+      weekday: 'long',
+      month: 'long',
+      day: 'numeric',
+      year: 'numeric'
+    });
+    const remainingLabel = daysLeft === 1 ? '1 day left' : `${daysLeft} days left`;
+    document.getElementById('currentDateInfo').textContent =
+      `Today: ${todayLabel} · ${remainingLabel} in this month`;
+  }
+
   function updateMonthLabel() {
     const d = new Date(viewYear, viewMonth);
     document.getElementById('monthLabel').textContent =
@@ -769,6 +790,8 @@
 
   // ───────── Init ─────────
   updateMonthLabel();
+  updateCurrentDateInfo();
+  setInterval(updateCurrentDateInfo, 60 * 1000);
   fetchData();
 
   // ───────── Date Default ─────────
