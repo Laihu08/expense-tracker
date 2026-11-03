@@ -1,0 +1,1008 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Daily Expense Tracker</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    /* ───────────────── Reset & Base ───────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #f0f2f5;
+      --surface: #ffffff;
+      --surface-hover: #f8f9fb;
+      --primary: #4f46e5;
+      --primary-light: #eef2ff;
+      --primary-dark: #4338ca;
+      --danger: #ef4444;
+      --danger-light: #fef2f2;
+      --text: #1e293b;
+      --text-secondary: #64748b;
+      --text-muted: #94a3b8;
+      --border: #e2e8f0;
+      --radius: 16px;
+      --radius-sm: 10px;
+      --radius-xs: 8px;
+      --shadow-sm: 0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04);
+      --shadow-md: 0 4px 12px rgba(0,0,0,.07), 0 2px 4px rgba(0,0,0,.04);
+      --shadow-lg: 0 10px 30px rgba(0,0,0,.08), 0 4px 8px rgba(0,0,0,.04);
+      --transition: .2s cubic-bezier(.4,0,.2,1);
+
+      /* Category colours */
+      --cat-food: #f97316;
+      --cat-transport: #3b82f6;
+      --cat-shopping: #a855f7;
+      --cat-bills: #14b8a6;
+      --cat-market: #22c55e;
+      --cat-grocery: #84cc16;
+      --cat-entertainment: #ec4899;
+      --cat-other: #6b7280;
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100dvh;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ───────────────── Buttons ───────────────── */
+    .btn {
+      width: 100%;
+      padding: 14px 24px;
+      font-size: 1rem;
+      font-weight: 600;
+      font-family: inherit;
+      border: none;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      transition: all var(--transition);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .btn-primary {
+      background: var(--primary);
+      color: #fff;
+    }
+
+    .btn-primary:hover {
+      background: var(--primary-dark);
+      transform: translateY(-1px);
+      box-shadow: 0 4px 14px rgba(79,70,229,.35);
+    }
+
+    .btn-primary:active {
+      transform: translateY(0);
+    }
+
+    /* ───────────────── App Shell ───────────────── */
+    #appContent {
+      display: none;
+      opacity: 0;
+      animation: fadeInUp .5s ease forwards;
+    }
+
+    @keyframes fadeInUp {
+      from { opacity: 0; transform: translateY(16px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .app-header {
+      background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+      color: #fff;
+      padding: 32px 24px 80px;
+    }
+
+    .app-header-inner {
+      max-width: 900px;
+      margin: 0 auto;
+    }
+
+    .app-title {
+      font-size: .85rem;
+      font-weight: 500;
+      opacity: .8;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      margin-bottom: 8px;
+    }
+
+    .month-nav {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-top: 4px;
+    }
+
+    .month-nav .nav-btn {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      border: 2px solid rgba(255,255,255,.3);
+      background: rgba(255,255,255,.1);
+      color: #fff;
+      font-size: 18px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all var(--transition);
+      font-family: inherit;
+      padding: 0;
+    }
+
+    .month-nav .nav-btn:hover {
+      background: rgba(255,255,255,.25);
+      border-color: rgba(255,255,255,.5);
+    }
+
+    .month-nav .nav-btn:disabled {
+      opacity: .3;
+      cursor: not-allowed;
+    }
+
+    .month-label {
+      font-size: 1.1rem;
+      font-weight: 600;
+      opacity: .9;
+      min-width: 160px;
+      text-align: center;
+    }
+
+    .month-nav .today-btn {
+      font-size: .75rem;
+      font-weight: 600;
+      padding: 5px 12px;
+      border-radius: 20px;
+      border: 2px solid rgba(255,255,255,.3);
+      background: rgba(255,255,255,.1);
+      color: #fff;
+      cursor: pointer;
+      transition: all var(--transition);
+      font-family: inherit;
+      display: none;
+    }
+
+    .month-nav .today-btn.visible {
+      display: inline-block;
+    }
+
+    .month-nav .today-btn:hover {
+      background: rgba(255,255,255,.25);
+      border-color: rgba(255,255,255,.5);
+    }
+
+    /* ───────────────── Dashboard Cards ───────────────── */
+    .dashboard {
+      max-width: 900px;
+      margin: -56px auto 0;
+      padding: 0 16px 100px;
+    }
+
+    .total-card {
+      background: var(--surface);
+      border-radius: var(--radius);
+      padding: 28px 24px;
+      box-shadow: var(--shadow-md);
+      text-align: center;
+      margin-bottom: 20px;
+    }
+
+    .total-card .label {
+      font-size: .8rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 6px;
+    }
+
+    .total-card .amount {
+      font-size: 2.8rem;
+      font-weight: 800;
+      color: var(--text);
+      line-height: 1.1;
+    }
+
+    .total-card .amount .currency {
+      font-size: 1.4rem;
+      font-weight: 600;
+      color: var(--text-secondary);
+      vertical-align: super;
+      margin-right: 2px;
+    }
+
+    /* Category Grid */
+    .category-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+      gap: 12px;
+      margin-bottom: 24px;
+    }
+
+    .cat-card {
+      background: var(--surface);
+      border-radius: var(--radius-sm);
+      padding: 16px;
+      box-shadow: var(--shadow-sm);
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      transition: transform var(--transition), box-shadow var(--transition);
+    }
+
+    .cat-card:hover {
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-md);
+    }
+
+    .cat-card .cat-icon {
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+    }
+
+    .cat-card .cat-name {
+      font-size: .78rem;
+      font-weight: 500;
+      color: var(--text-secondary);
+    }
+
+    .cat-card .cat-amount {
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    /* ───────────────── Layout Grid (Desktop) ───────────────── */
+    .content-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 20px;
+    }
+
+    @media (min-width: 768px) {
+      .content-grid {
+        grid-template-columns: 380px 1fr;
+      }
+    }
+
+    /* ───────────────── Add Expense Card ───────────────── */
+    .card {
+      background: var(--surface);
+      border-radius: var(--radius);
+      padding: 24px;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .card-title {
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .card-title .icon {
+      font-size: 20px;
+    }
+
+    .form-group {
+      margin-bottom: 16px;
+    }
+
+    .form-group label {
+      display: block;
+      font-size: .8rem;
+      font-weight: 600;
+      color: var(--text-secondary);
+      margin-bottom: 6px;
+      text-transform: uppercase;
+      letter-spacing: .5px;
+    }
+
+    .form-group input,
+    .form-group select {
+      width: 100%;
+      padding: 12px 14px;
+      font-size: .95rem;
+      font-family: inherit;
+      border: 2px solid var(--border);
+      border-radius: var(--radius-xs);
+      background: var(--surface);
+      color: var(--text);
+      outline: none;
+      transition: border-color var(--transition), box-shadow var(--transition);
+      appearance: none;
+      -webkit-appearance: none;
+    }
+
+    .form-group input:focus,
+    .form-group select:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(79,70,229,.12);
+    }
+
+    .form-group select {
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%2364748b' viewBox='0 0 16 16'%3E%3Cpath d='M4.646 5.646a.5.5 0 0 1 .708 0L8 8.293l2.646-2.647a.5.5 0 0 1 .708.708l-3 3a.5.5 0 0 1-.708 0l-3-3a.5.5 0 0 1 0-.708z'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 14px center;
+      padding-right: 40px;
+    }
+
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    /* ───────────────── Expense List ───────────────── */
+    .expense-list-wrapper {
+      max-height: 500px;
+      overflow-y: auto;
+    }
+
+    .expense-list-wrapper::-webkit-scrollbar {
+      width: 4px;
+    }
+
+    .expense-list-wrapper::-webkit-scrollbar-thumb {
+      background: var(--border);
+      border-radius: 4px;
+    }
+
+    .expense-list {
+      list-style: none;
+    }
+
+    .swipe-container {
+      position: relative;
+      overflow: hidden;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .swipe-container:last-child {
+      border-bottom: none;
+    }
+
+    .delete-bg {
+      position: absolute;
+      top: 0;
+      right: 0;
+      bottom: 0;
+      width: 100%;
+      background: var(--danger);
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      padding-right: 24px;
+      color: #fff;
+      font-size: .85rem;
+      font-weight: 600;
+      gap: 6px;
+      pointer-events: none;
+    }
+
+    .delete-bg .delete-icon {
+      font-size: 20px;
+    }
+
+    .expense-item {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 14px 4px;
+      position: relative;
+      background: var(--surface);
+      transition: transform .25s cubic-bezier(.4,0,.2,1);
+      cursor: grab;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    .recurring-expense .expense-item {
+      cursor: default;
+    }
+
+    .expense-item.swiping {
+      transition: none;
+    }
+
+    .expense-item.removing {
+      transition: transform .3s ease, opacity .3s ease;
+      transform: translateX(-110%) !important;
+      opacity: 0;
+    }
+
+    .swipe-container.collapsing {
+      transition: max-height .3s ease, border .3s ease, margin .3s ease;
+      max-height: 0 !important;
+      border-bottom: 0;
+      overflow: hidden;
+    }
+
+    /* Desktop delete button (shown on hover) */
+    .delete-btn-desktop {
+      display: none;
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      border: none;
+      background: var(--danger-light);
+      color: var(--danger);
+      font-size: 16px;
+      cursor: pointer;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      transition: all var(--transition);
+    }
+
+    .delete-btn-desktop:hover {
+      background: var(--danger);
+      color: #fff;
+    }
+
+    @media (min-width: 768px) {
+      .swipe-container:hover .delete-btn-desktop {
+        display: flex;
+      }
+    }
+
+    .expense-item .item-icon {
+      width: 42px;
+      height: 42px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      flex-shrink: 0;
+    }
+
+    .expense-item .item-details {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .expense-item .item-name {
+      font-size: .9rem;
+      font-weight: 600;
+      color: var(--text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .expense-item .item-meta {
+      font-size: .78rem;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    .expense-item .item-amount {
+      font-size: .95rem;
+      font-weight: 700;
+      color: var(--danger);
+      white-space: nowrap;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 40px 20px;
+      color: var(--text-muted);
+    }
+
+    .empty-state .empty-icon {
+      font-size: 48px;
+      margin-bottom: 12px;
+    }
+
+    .empty-state p {
+      font-size: .9rem;
+    }
+
+    /* ───────────────── Toast notification ───────────────── */
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%) translateY(80px);
+      background: #1e293b;
+      color: #fff;
+      padding: 12px 24px;
+      border-radius: 12px;
+      font-size: .9rem;
+      font-weight: 500;
+      box-shadow: 0 8px 24px rgba(0,0,0,.15);
+      z-index: 999;
+      opacity: 0;
+      transition: all .35s cubic-bezier(.4,0,.2,1);
+      pointer-events: none;
+    }
+
+    .toast.show {
+      transform: translateX(-50%) translateY(0);
+      opacity: 1;
+    }
+
+    /* ───────────────── Loading Spinner ───────────────── */
+    .spinner {
+      display: inline-block;
+      width: 18px;
+      height: 18px;
+      border: 2.5px solid rgba(255,255,255,.3);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin .6s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* ───────────────── Responsive ───────────────── */
+    @media (max-width: 767px) {
+      .app-header {
+        padding: 24px 20px 72px;
+      }
+
+      .dashboard {
+        padding: 0 12px 80px;
+        margin-top: -48px;
+      }
+
+      .total-card .amount {
+        font-size: 2.2rem;
+      }
+
+      .category-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 10px;
+      }
+
+      .card {
+        padding: 20px 16px;
+      }
+    }
+
+    @media (min-width: 768px) {
+      .app-header {
+        padding: 40px 32px 88px;
+      }
+
+      .dashboard {
+        padding: 0 24px 60px;
+      }
+
+      .total-card {
+        padding: 32px;
+      }
+
+      .total-card .amount {
+        font-size: 3.2rem;
+      }
+
+      .category-grid {
+        grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+      }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ═════════ Main App ═════════ -->
+<div id="appContent" style="display:block; opacity:1; animation:none;">
+  <!-- Header -->
+  <header class="app-header">
+    <div class="app-header-inner">
+      <div class="app-title">Expense Tracker</div>
+      <div class="month-nav">
+        <button class="nav-btn" id="prevMonth" onclick="changeMonth(-1)">‹</button>
+        <div class="month-label" id="monthLabel"></div>
+        <button class="nav-btn" id="nextMonth" onclick="changeMonth(1)">›</button>
+        <button class="today-btn" id="todayBtn" onclick="goToCurrentMonth()">Today</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Dashboard -->
+  <main class="dashboard">
+    <!-- Total Card -->
+    <div class="total-card">
+      <div class="label">Total Spent This Month</div>
+      <div class="amount" id="monthTotal"><span class="currency">NT$</span>0</div>
+    </div>
+
+    <!-- Category Breakdown -->
+    <div class="category-grid" id="categoryTotals"></div>
+
+    <!-- Content Grid: Form + Expense List -->
+    <div class="content-grid">
+      <!-- Add Expense Form -->
+      <div class="card">
+        <div class="card-title"><span class="icon">➕</span> Add Expense</div>
+        <form id="expenseForm">
+          <div class="form-group">
+            <label for="amount">Amount (NTD)</label>
+            <input type="number" id="amount" placeholder="e.g. 250" required>
+          </div>
+          <div class="form-group">
+            <label for="item">Description</label>
+            <input type="text" id="item" placeholder="e.g. Lunch at café" required>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="category">Category</label>
+              <select id="category">
+                <option value="Food">🍜 Food</option>
+                <option value="Transport">🚌 Transport</option>
+                <option value="Shopping">🛍️ Shopping</option>
+                <option value="Bills">📄 Bills</option>
+                <option value="Market">🥬 Market</option>
+                <option value="Grocery">🛒 Grocery</option>
+                <option value="Entertainment">🎬 Entertainment</option>
+                <option value="Other">📦 Other</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="date">Date</label>
+              <input type="date" id="date" required>
+            </div>
+          </div>
+          <button type="submit" class="btn btn-primary" id="submitBtn">
+            Add Expense
+          </button>
+        </form>
+      </div>
+
+      <!-- Expense List -->
+      <div class="card">
+        <div class="card-title"><span class="icon">📋</span> Recent Expenses</div>
+        <div class="expense-list-wrapper">
+          <ul class="expense-list" id="expenseList">
+            <li class="empty-state">
+              <div class="empty-icon">📊</div>
+              <p>Loading your expenses...</p>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+  // ───────── CONFIG ─────────
+  // NOTE: Your Google Apps Script must handle delete requests.
+  // See the google-apps-script-update.js file for the updated doPost function.
+  const API_URL = "https://script.google.com/macros/s/AKfycbxgwYOVgKautJp8948_SNm6BvcqzZfhmH3AUXckmggIZAOCU0o3Z8Jycc1qcwq0xEjN/exec";
+
+  // ───────── Helpers ─────────
+  const CATEGORY_META = {
+    Food:      { icon: '🍜', color: 'var(--cat-food)' },
+    Transport: { icon: '🚌', color: 'var(--cat-transport)' },
+    Shopping:  { icon: '🛍️', color: 'var(--cat-shopping)' },
+    Bills:     { icon: '📄', color: 'var(--cat-bills)' },
+    Market:    { icon: '🥬', color: 'var(--cat-market)' },
+    Grocery:   { icon: '🛒', color: 'var(--cat-grocery)' },
+    Entertainment: { icon: '🎬', color: 'var(--cat-entertainment)' },
+    Other:     { icon: '📦', color: 'var(--cat-other)' }
+  };
+
+  const RECURRING_EXPENSES = [
+    { item: 'Phone bill', amount: 599 },
+    { item: 'Netflix', amount: 230 },
+    { item: 'Google Cloud', amount: 220 },
+    { item: 'Apple Cloud', amount: 90 },
+    { item: 'Taiwan insurance', amount: 686 },
+    { item: 'India insurance', amount: 3500 },
+    { item: 'Laptop EMI', amount: 4450, endMonth: 2027 * 12 + 6 }
+  ];
+
+  function getCatMeta(cat) {
+    return CATEGORY_META[cat] || CATEGORY_META['Other'];
+  }
+
+  function formatAmount(n) {
+    return Number(n).toLocaleString();
+  }
+
+  function showToast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 2500);
+  }
+
+  // ───────── Month Navigation ─────────
+  let viewMonth = new Date().getMonth();
+  let viewYear = new Date().getFullYear();
+  let allData = [];
+
+  function updateMonthLabel() {
+    const d = new Date(viewYear, viewMonth);
+    document.getElementById('monthLabel').textContent =
+      d.toLocaleString('default', { month: 'long', year: 'numeric' });
+
+    // Show/hide "Today" button
+    const now = new Date();
+    const isCurrentMonth = viewMonth === now.getMonth() && viewYear === now.getFullYear();
+    document.getElementById('todayBtn').classList.toggle('visible', !isCurrentMonth);
+
+    // Disable "next" if already at current month
+    document.getElementById('nextMonth').disabled = isCurrentMonth;
+  }
+
+  function changeMonth(delta) {
+    viewMonth += delta;
+    if (viewMonth > 11) { viewMonth = 0; viewYear++; }
+    if (viewMonth < 0)  { viewMonth = 11; viewYear--; }
+    updateMonthLabel();
+    renderDashboard(allData);
+  }
+
+  function goToCurrentMonth() {
+    const now = new Date();
+    viewMonth = now.getMonth();
+    viewYear = now.getFullYear();
+    updateMonthLabel();
+    renderDashboard(allData);
+  }
+
+  // ───────── Init ─────────
+  updateMonthLabel();
+  fetchData();
+
+  // ───────── Date Default ─────────
+  document.getElementById('date').valueAsDate = new Date();
+
+  // ───────── Form Submit ─────────
+  const form = document.getElementById('expenseForm');
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const btn = document.getElementById('submitBtn');
+    btn.innerHTML = '<span class="spinner"></span> Adding...';
+    btn.disabled = true;
+
+    const newExpense = {
+      amount: document.getElementById('amount').value,
+      item: document.getElementById('item').value,
+      category: document.getElementById('category').value,
+      date: document.getElementById('date').value
+    };
+
+    try {
+      await fetch(API_URL, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain" },
+        body: JSON.stringify(newExpense)
+      });
+      form.reset();
+      document.getElementById('date').valueAsDate = new Date();
+      showToast('✅ Expense added successfully!');
+      fetchData();
+    } catch (err) {
+      showToast('❌ Failed to add expense');
+    }
+
+    btn.innerHTML = 'Add Expense';
+    btn.disabled = false;
+  });
+
+  // ───────── Fetch Data ─────────
+  async function fetchData() {
+    try {
+      const res = await fetch(API_URL);
+      const result = await res.json();
+      if (result.status === "success") {
+        allData = result.data;
+        renderDashboard(allData);
+      }
+    } catch (err) {
+      document.getElementById('expenseList').innerHTML =
+        '<li class="empty-state"><div class="empty-icon">⚠️</div><p>Could not load data. Check your connection.</p></li>';
+    }
+  }
+
+  // ───────── Render Dashboard ─────────
+  function renderDashboard(data) {
+    let monthTotal = 0;
+    let catTotals = {};
+    let listHtml = "";
+
+    // Filter and display expenses for the selected month
+    const sorted = data.map((row, originalIndex) => ({ ...row, originalIndex })).reverse();
+    const monthKey = viewYear * 12 + viewMonth;
+    const now = new Date();
+    const currentMonthKey = now.getFullYear() * 12 + now.getMonth();
+    if (monthKey >= currentMonthKey) {
+      const monthDate = `${viewYear}-${String(viewMonth + 1).padStart(2, '0')}-01`;
+      const recurringRows = RECURRING_EXPENSES
+        .filter(expense => expense.endMonth === undefined || monthKey <= expense.endMonth)
+        .map(expense => ({
+          ...expense,
+          category: 'Bills',
+          date: monthDate,
+          isRecurring: true
+        }));
+      sorted.unshift(...recurringRows);
+    }
+
+    sorted.forEach((row) => {
+      const rowDate = new Date(row.date);
+      const amount = parseFloat(row.amount) || 0;
+      const meta = getCatMeta(row.category);
+
+      if (rowDate.getMonth() === viewMonth && rowDate.getFullYear() === viewYear) {
+        monthTotal += amount;
+        catTotals[row.category] = (catTotals[row.category] || 0) + amount;
+
+        listHtml += `
+          <li class="swipe-container${row.isRecurring ? ' recurring-expense' : ''}"${row.isRecurring ? '' : ` data-row="${row.originalIndex}"`}>
+            ${row.isRecurring ? '' : '<div class="delete-bg"><span class="delete-icon">🗑️</span> Delete</div>'}
+            <div class="expense-item">
+              <div class="item-icon" style="background:${meta.color}15; color:${meta.color};">${meta.icon}</div>
+              <div class="item-details">
+                <div class="item-name">${row.item}</div>
+                <div class="item-meta">${row.category}${row.isRecurring ? ' · Monthly' : ''} · ${rowDate.toLocaleDateString('default', { month: 'short', day: 'numeric', year: 'numeric' })}</div>
+              </div>
+              <div class="item-amount">-NT$${formatAmount(amount)}</div>
+              ${row.isRecurring ? '' : `<button class="delete-btn-desktop" onclick="deleteExpense(${row.originalIndex}, this)" title="Delete">🗑️</button>`}
+            </div>
+          </li>`;
+      }
+    });
+
+    // Total
+    document.getElementById('monthTotal').innerHTML =
+      `<span class="currency">NT$</span>${formatAmount(monthTotal)}`;
+
+    // Category cards
+    const catHtml = Object.entries(catTotals).map(([cat, total]) => {
+      const meta = getCatMeta(cat);
+      return `
+        <div class="cat-card">
+          <div class="cat-icon" style="background:${meta.color}15; color:${meta.color};">${meta.icon}</div>
+          <div class="cat-name">${cat}</div>
+          <div class="cat-amount">NT$${formatAmount(total)}</div>
+        </div>`;
+    }).join('');
+    document.getElementById('categoryTotals').innerHTML = catHtml;
+
+    // Expense list
+    if (listHtml) {
+      document.getElementById('expenseList').innerHTML = listHtml;
+      initSwipe();
+    } else {
+      const monthName = new Date(viewYear, viewMonth).toLocaleString('default', { month: 'long', year: 'numeric' });
+      document.getElementById('expenseList').innerHTML =
+        `<li class="empty-state"><div class="empty-icon">📭</div><p>No expenses in ${monthName}</p></li>`;
+    }
+  }
+
+  // ───────── Delete Expense ─────────
+  async function deleteExpense(dataIndex, triggerEl) {
+    // Row in Google Sheet = dataIndex + 2 (1-indexed + header row)
+    const sheetRow = dataIndex + 2;
+
+    // Animate out
+    const container = triggerEl ? triggerEl.closest('.swipe-container') : null;
+    if (container) {
+      const item = container.querySelector('.expense-item');
+      if (item) {
+        item.classList.add('removing');
+      }
+      await new Promise(r => setTimeout(r, 300));
+      container.style.maxHeight = container.offsetHeight + 'px';
+      // Force reflow
+      container.offsetHeight;
+      container.classList.add('collapsing');
+      await new Promise(r => setTimeout(r, 300));
+    }
+
+    showToast('🗑️ Deleting expense...');
+
+    try {
+      await fetch(API_URL, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain" },
+        body: JSON.stringify({ action: "delete", row: sheetRow })
+      });
+      showToast('✅ Expense deleted!');
+      await fetchData();
+    } catch (err) {
+      showToast('❌ Failed to delete expense');
+      renderDashboard(allData);
+    }
+  }
+
+  // ───────── Swipe-to-Delete (Touch + Mouse) ─────────
+  function initSwipe() {
+    const containers = document.querySelectorAll('.swipe-container:not(.recurring-expense)');
+    const THRESHOLD = 80; // px to trigger delete
+
+    containers.forEach(container => {
+      const item = container.querySelector('.expense-item');
+      let startX = 0, currentX = 0, isSwiping = false;
+
+      function onStart(x) {
+        startX = x;
+        currentX = x;
+        isSwiping = true;
+        item.classList.add('swiping');
+      }
+
+      function onMove(x) {
+        if (!isSwiping) return;
+        currentX = x;
+        let diff = currentX - startX;
+        // Only allow swipe left (negative)
+        if (diff > 0) diff = 0;
+        item.style.transform = `translateX(${diff}px)`;
+      }
+
+      function onEnd() {
+        if (!isSwiping) return;
+        isSwiping = false;
+        item.classList.remove('swiping');
+        const diff = currentX - startX;
+
+        if (diff < -THRESHOLD) {
+          // Trigger delete
+          const rowIndex = parseInt(container.dataset.row);
+          deleteExpense(rowIndex, container);
+        } else {
+          // Snap back
+          item.style.transform = '';
+        }
+      }
+
+      // Touch events
+      item.addEventListener('touchstart', (e) => {
+        onStart(e.touches[0].clientX);
+      }, { passive: true });
+
+      item.addEventListener('touchmove', (e) => {
+        onMove(e.touches[0].clientX);
+      }, { passive: true });
+
+      item.addEventListener('touchend', onEnd);
+      item.addEventListener('touchcancel', onEnd);
+
+      // Mouse events (for desktop testing)
+      item.addEventListener('mousedown', (e) => {
+        onStart(e.clientX);
+        e.preventDefault();
+      });
+
+      document.addEventListener('mousemove', (e) => {
+        if (isSwiping) onMove(e.clientX);
+      });
+
+      document.addEventListener('mouseup', () => {
+        if (isSwiping) onEnd();
+      });
+    });
+  }
+</script>
+
+</body>
+</html>
