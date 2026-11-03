@@ -623,7 +623,7 @@
         <button class="nav-btn" id="nextMonth" onclick="changeMonth(1)">›</button>
         <button class="today-btn" id="todayBtn" onclick="goToCurrentMonth()">Today</button>
       </div>
-      <div class="current-date-info" id="currentDateInfo" aria-live="polite"></div>
+      <div class="current-date-info" id="currentDateInfo" aria-live="polite" hidden></div>
     </div>
   </header>
 
@@ -746,6 +746,11 @@
 
   function updateCurrentDateInfo() {
     const now = new Date();
+    const dateInfo = document.getElementById('currentDateInfo');
+    const isCurrentMonth = viewMonth === now.getMonth() && viewYear === now.getFullYear();
+    dateInfo.hidden = !isCurrentMonth;
+    if (!isCurrentMonth) return;
+
     const daysLeft = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate() - now.getDate();
     const todayLabel = now.toLocaleDateString('default', {
       weekday: 'long',
@@ -754,8 +759,7 @@
       year: 'numeric'
     });
     const remainingLabel = daysLeft === 1 ? '1 day left' : `${daysLeft} days left`;
-    document.getElementById('currentDateInfo').textContent =
-      `Today: ${todayLabel} · ${remainingLabel} in this month`;
+    dateInfo.textContent = `Today: ${todayLabel} · ${remainingLabel} in this month`;
   }
 
   function updateMonthLabel() {
@@ -767,6 +771,7 @@
     const now = new Date();
     const isCurrentMonth = viewMonth === now.getMonth() && viewYear === now.getFullYear();
     document.getElementById('todayBtn').classList.toggle('visible', !isCurrentMonth);
+    updateCurrentDateInfo();
 
     // Disable "next" if already at current month
     document.getElementById('nextMonth').disabled = isCurrentMonth;
@@ -790,7 +795,6 @@
 
   // ───────── Init ─────────
   updateMonthLabel();
-  updateCurrentDateInfo();
   setInterval(updateCurrentDateInfo, 60 * 1000);
   fetchData();
 
