@@ -226,6 +226,17 @@
       margin-right: 2px;
     }
 
+    .total-loading {
+      display: inline-block;
+      width: 30px;
+      height: 30px;
+      border: 3px solid var(--border);
+      border-top-color: var(--primary);
+      border-radius: 50%;
+      vertical-align: middle;
+      animation: spin .8s linear infinite;
+    }
+
     /* Category Grid */
     .category-grid {
       display: grid;
@@ -522,6 +533,37 @@
       font-size: .9rem;
     }
 
+    .loading-state {
+      text-align: center;
+      padding: 20px;
+      color: var(--text-secondary);
+    }
+
+    .loading-state img {
+      display: block;
+      width: min(100%, 280px);
+      height: auto;
+      margin: 0 auto 12px;
+      border-radius: var(--radius-sm);
+      animation: loadingBob 2s ease-in-out infinite;
+    }
+
+    .loading-state p {
+      font-size: .9rem;
+    }
+
+    @keyframes loadingBob {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-6px); }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .total-loading,
+      .loading-state img {
+        animation: none;
+      }
+    }
+
     /* ───────────────── Toast notification ───────────────── */
     .toast {
       position: fixed;
@@ -632,7 +674,7 @@
     <!-- Total Card -->
     <div class="total-card">
       <div class="label">Total Spent This Month</div>
-      <div class="amount" id="monthTotal"><span class="currency">NT$</span>0</div>
+      <div class="amount" id="monthTotal" aria-live="polite"><span class="total-loading" role="status" aria-label="Loading total"></span></div>
     </div>
 
     <!-- Category Breakdown -->
@@ -682,8 +724,8 @@
         <div class="card-title"><span class="icon">📋</span> Recent Expenses</div>
         <div class="expense-list-wrapper">
           <ul class="expense-list" id="expenseList">
-            <li class="empty-state">
-              <div class="empty-icon">📊</div>
+            <li class="loading-state" role="status">
+              <img src="assets/expense-loading.png" alt="A person checking a long expense receipt">
               <p>Loading your expenses...</p>
             </li>
           </ul>
@@ -698,8 +740,6 @@
 
 <script>
   // ───────── CONFIG ─────────
-  // NOTE: Your Google Apps Script must handle delete requests.
-  // See the google-apps-script-update.js file for the updated doPost function.
   const API_URL = "https://script.google.com/macros/s/AKfycbxgwYOVgKautJp8948_SNm6BvcqzZfhmH3AUXckmggIZAOCU0o3Z8Jycc1qcwq0xEjN/exec";
 
   // ───────── Helpers ─────────
@@ -836,14 +876,21 @@
 
   // ───────── Fetch Data ─────────
   async function fetchData() {
+    document.getElementById('monthTotal').innerHTML =
+      '<span class="total-loading" role="status" aria-label="Loading total"></span>';
+    document.getElementById('expenseList').innerHTML =
+      '<li class="loading-state" role="status"><img src="assets/expense-loading.png" alt="A person checking a long expense receipt"><p>Loading your expenses...</p></li>';
+
     try {
       const res = await fetch(API_URL);
       const result = await res.json();
-      if (result.status === "success") {
-        allData = result.data;
-        renderDashboard(allData);
+      if (result.status !== "success") {
+        throw new Error(result.message || 'Expense service returned an error');
       }
+      allData = result.data;
+      renderDashboard(allData);
     } catch (err) {
+      document.getElementById('monthTotal').textContent = 'Unavailable';
       document.getElementById('expenseList').innerHTML =
         '<li class="empty-state"><div class="empty-icon">⚠️</div><p>Could not load data. Check your connection.</p></li>';
     }
