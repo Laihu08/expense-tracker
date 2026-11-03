@@ -144,20 +144,29 @@
       letter-spacing: 1.5px;
     }
 
-    .theme-select {
-      padding: 7px 10px;
+    .theme-toggle {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 38px;
+      height: 38px;
       border: 1px solid rgba(255,255,255,.35);
-      border-radius: var(--radius-xs);
+      border-radius: 50%;
       background: rgba(255,255,255,.12);
       color: #fff;
-      font: inherit;
-      font-size: .8rem;
+      font-size: 19px;
       cursor: pointer;
+      transition: background var(--transition), transform var(--transition);
     }
 
-    .theme-select option {
-      background: var(--surface);
-      color: var(--text);
+    .theme-toggle:hover {
+      background: rgba(255,255,255,.25);
+      transform: rotate(12deg);
+    }
+
+    .theme-toggle:focus-visible {
+      outline: 2px solid #fff;
+      outline-offset: 3px;
     }
 
     :root[data-theme="dark"] .comparison-badge.spending-down {
@@ -1029,10 +1038,7 @@
     <div class="app-header-inner">
       <div class="app-header-top">
         <div class="app-title">Expense Tracker</div>
-        <select class="theme-select" id="themeSelect" aria-label="Color theme">
-          <option value="light">☀️ Light</option>
-          <option value="dark">🌙 Dark</option>
-        </select>
+        <button class="theme-toggle" id="themeToggle" type="button" aria-label="Switch to dark theme" title="Switch to dark theme">🌙</button>
       </div>
       <div class="month-nav">
         <div class="month-controls">
@@ -1184,11 +1190,14 @@
   // ───────── CONFIG ─────────
   const API_URL = "https://script.google.com/macros/s/AKfycbxgwYOVgKautJp8948_SNm6BvcqzZfhmH3AUXckmggIZAOCU0o3Z8Jycc1qcwq0xEjN/exec";
 
-  const themeSelect = document.getElementById('themeSelect');
+  const themeToggle = document.getElementById('themeToggle');
   function setTheme(theme, persist = true) {
     const selectedTheme = theme === 'dark' ? 'dark' : 'light';
     document.documentElement.dataset.theme = selectedTheme;
-    themeSelect.value = selectedTheme;
+    const nextTheme = selectedTheme === 'dark' ? 'light' : 'dark';
+    themeToggle.textContent = selectedTheme === 'dark' ? '☀️' : '🌙';
+    themeToggle.setAttribute('aria-label', `Switch to ${nextTheme} theme`);
+    themeToggle.title = `Switch to ${nextTheme} theme`;
     if (persist) {
       try {
         localStorage.setItem('expense-tracker-theme', selectedTheme);
@@ -1205,7 +1214,9 @@
     console.warn('Could not read saved theme preference:', error);
   }
   setTheme(savedTheme, false);
-  themeSelect.addEventListener('change', () => setTheme(themeSelect.value));
+  themeToggle.addEventListener('click', () => {
+    setTheme(document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark');
+  });
 
   // ───────── Helpers ─────────
   const CATEGORY_META = {
