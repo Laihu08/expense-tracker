@@ -751,7 +751,8 @@
       font-weight: 600;
     }
 
-    .recurring-detail-field-editor input {
+    .recurring-detail-field-editor input,
+    .recurring-detail-field-editor select {
       width: 100%;
       min-width: 0;
       box-sizing: border-box;
@@ -764,7 +765,8 @@
       font-size: .88rem;
     }
 
-    .recurring-detail-field-editor input:focus {
+    .recurring-detail-field-editor input:focus,
+    .recurring-detail-field-editor select:focus {
       outline: 2px solid var(--primary);
       outline-offset: 1px;
     }
@@ -847,6 +849,20 @@
     }
 
     @media (max-width: 480px) {
+      .recurring-heading {
+        gap: 8px;
+      }
+
+      .recurring-heading-info {
+        flex: 1 1 auto;
+        justify-content: space-between;
+      }
+
+      .add-fixed-expense-button {
+        width: 36px;
+        height: 36px;
+      }
+
       .month-nav .today-btn {
         top: calc(100% + 6px);
         transform: none;
@@ -869,6 +885,14 @@
         padding: 18px 18px 14px;
       }
 
+      .recurring-heading {
+        align-items: center;
+      }
+
+      .recurring-heading-info {
+        gap: 4px 10px;
+      }
+
       .category-detail-list {
         padding-right: 18px;
         padding-left: 18px;
@@ -876,6 +900,25 @@
 
       .edit-expense-form {
         padding: 18px;
+      }
+
+      #addFixedExpenseForm .form-row {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 0;
+      }
+
+      #addFixedExpenseForm .form-group input {
+        min-width: 0;
+        max-width: 100%;
+      }
+
+      #addFixedExpenseForm .category-detail-actions {
+        flex-direction: column;
+      }
+
+      #addFixedExpenseForm .category-detail-actions .btn {
+        flex: 1 1 auto;
+        width: 100%;
       }
 
       .recurring-detail-content {
@@ -982,6 +1025,19 @@
       padding-right: 40px;
     }
 
+    .category-suggestion {
+      display: block;
+      margin-top: 6px;
+      color: var(--primary);
+      font-size: .76rem;
+      font-weight: 600;
+      line-height: 1.35;
+    }
+
+    .category-suggestion[hidden] {
+      display: none;
+    }
+
     .form-row {
       display: grid;
       grid-template-columns: 1fr 1fr;
@@ -1037,6 +1093,83 @@
       font-weight: 700;
       letter-spacing: .8px;
       text-transform: uppercase;
+    }
+
+    .recurring-heading-info {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex: 1 1 auto;
+      min-width: 0;
+    }
+
+    .add-fixed-expense-button {
+      flex: 0 0 auto;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 34px;
+      height: 34px;
+      padding: 0;
+      border: 1px solid color-mix(in srgb, var(--primary) 24%, transparent);
+      border-radius: 50%;
+      background: var(--primary-light);
+      color: var(--primary);
+      font: inherit;
+      font-size: 1.25rem;
+      font-weight: 600;
+      line-height: 1;
+      letter-spacing: 0;
+      text-transform: none;
+      cursor: pointer;
+      transition: background var(--transition), color var(--transition), transform var(--transition);
+    }
+
+    .add-fixed-expense-button:focus-visible {
+      outline: 2px solid var(--primary);
+      outline-offset: 2px;
+    }
+
+    .add-fixed-expense-button:hover {
+      background: var(--primary);
+      color: #fff;
+    }
+
+    .add-fixed-expense-button:active {
+      transform: scale(.96);
+    }
+
+    .optional-label,
+    .form-helper {
+      color: var(--text-secondary);
+      font-size: .78rem;
+      font-weight: 500;
+    }
+
+    .form-helper {
+      margin: -5px 0 14px;
+      line-height: 1.45;
+    }
+
+    .date-range-error {
+      margin: -4px 0 12px;
+      color: var(--danger);
+      font-size: .82rem;
+    }
+
+    .date-range-error[hidden] {
+      display: none;
+    }
+
+    #addFixedExpenseForm .category-detail-actions {
+      flex-wrap: wrap;
+    }
+
+    #addFixedExpenseForm .category-detail-actions .btn {
+      flex: 1 1 140px;
+      width: auto;
+      min-height: 44px;
     }
 
     .recurring-monthly-badge {
@@ -1384,7 +1517,8 @@
           <div class="form-row">
             <div class="form-group">
               <label for="category">Category</label>
-              <select id="category">
+              <select id="category" required aria-describedby="categorySuggestion">
+                <option value="" selected disabled>Select category</option>
                 <option value="Food">🍜 Food</option>
                 <option value="Transport">🚌 Transport</option>
                 <option value="Shopping">🛍️ Shopping</option>
@@ -1396,6 +1530,7 @@
                 <option value="Fuel">⛽ Fuel</option>
                 <option value="Other">📦 Other</option>
               </select>
+              <span class="category-suggestion" id="categorySuggestion" role="status" hidden></span>
             </div>
             <div class="form-group">
               <label for="date">Date</label>
@@ -1454,6 +1589,65 @@
   </div>
 </dialog>
 
+<dialog class="category-detail-dialog" id="addFixedExpenseDialog" aria-labelledby="addFixedExpenseTitle" aria-describedby="addFixedExpenseIntro">
+  <div class="category-detail-content">
+    <header class="category-detail-header">
+      <div>
+        <h2 class="category-detail-title" id="addFixedExpenseTitle">Add fixed expense</h2>
+        <p class="category-detail-total" id="addFixedExpenseIntro">Add a bill that repeats every month.</p>
+      </div>
+      <button class="category-detail-close" id="closeAddFixedExpense" type="button" aria-label="Close add fixed expense form">×</button>
+    </header>
+    <form class="edit-expense-form" id="addFixedExpenseForm">
+      <div class="form-group">
+        <label for="fixedExpenseName">Expense name</label>
+        <input type="text" id="fixedExpenseName" maxlength="80" placeholder="e.g. Gym membership" required autofocus>
+      </div>
+      <div class="form-group">
+        <label for="fixedExpenseAmount">Monthly amount (NTD)</label>
+        <input type="number" id="fixedExpenseAmount" min="0.01" step="any" inputmode="decimal" placeholder="e.g. 1200" required>
+      </div>
+      <div class="form-group">
+        <label for="fixedExpenseCategory">Category</label>
+        <select id="fixedExpenseCategory" required aria-describedby="fixedExpenseCategorySuggestion">
+          <option value="" selected disabled>Select category</option>
+          <option value="Food">🍜 Food</option>
+          <option value="Transport">🚌 Transport</option>
+          <option value="Shopping">🛍️ Shopping</option>
+          <option value="Bills">📄 Bills</option>
+          <option value="Market">🥬 Market</option>
+          <option value="Grocery">🛒 Grocery</option>
+          <option value="Entertainment">🎬 Entertainment</option>
+          <option value="Health">💪🏼 Health</option>
+          <option value="Fuel">⛽ Fuel</option>
+          <option value="Other">📦 Other</option>
+        </select>
+        <span class="category-suggestion" id="fixedExpenseCategorySuggestion" role="status" hidden></span>
+      </div>
+      <div class="form-group">
+        <label for="fixedExpenseDescription">Description <span class="optional-label">Optional</span></label>
+        <input type="text" id="fixedExpenseDescription" maxlength="240" placeholder="e.g. Monthly membership fee">
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label for="fixedExpenseStartDate">Start date <span class="optional-label">Optional</span></label>
+          <input type="date" id="fixedExpenseStartDate" aria-describedby="fixedExpenseDateHelp fixedExpenseDateError">
+        </div>
+        <div class="form-group">
+          <label for="fixedExpenseEndDate">End date <span class="optional-label">Optional</span></label>
+          <input type="date" id="fixedExpenseEndDate" aria-describedby="fixedExpenseDateHelp fixedExpenseDateError">
+        </div>
+      </div>
+      <p class="form-helper" id="fixedExpenseDateHelp">Leave dates empty to repeat without a date limit.</p>
+      <p class="date-range-error" id="fixedExpenseDateError" role="alert" hidden></p>
+      <div class="category-detail-actions">
+        <button type="button" class="btn btn-secondary" id="cancelAddFixedExpense">Cancel</button>
+        <button type="submit" class="btn btn-primary" id="saveFixedExpense">Save fixed expense</button>
+      </div>
+    </form>
+  </div>
+</dialog>
+
 <dialog class="category-detail-dialog" id="editExpenseDialog" aria-labelledby="editExpenseTitle">
   <div class="category-detail-content">
     <header class="category-detail-header">
@@ -1502,7 +1696,7 @@
 </dialog>
 
 <!-- Toast -->
-<div class="toast" id="toast"></div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <script>
   // ───────── CONFIG ─────────
@@ -1551,20 +1745,48 @@
   };
 
   const RECURRING_EXPENSES = [
-    { item: 'Phone bill', amount: 599, detailId: 'phoneBill' },
-    { item: 'Netflix', amount: 230, detailId: 'netflix' },
-    { item: 'Google Cloud', amount: 220, detailId: 'googleCloud' },
-    { item: 'Apple Cloud', amount: 90, detailId: 'appleCloud' },
-    { item: 'Taiwan insurance', amount: 686, detailId: 'taiwanInsurance' },
-    { item: 'India insurance', amount: 3500, endMonth: 2035 * 12 + 6, detailId: 'indiaInsurance' },
-    { item: 'Macbook EMI', amount: 4450, endMonth: 2027 * 12 + 6, detailId: 'macbookEmi' }
+    { item: 'Phone bill', amount: 599, category: 'Entertainment', detailId: 'phoneBill' },
+    { item: 'Netflix', amount: 230, category: 'Entertainment', detailId: 'netflix' },
+    { item: 'Google Cloud', amount: 220, category: 'Entertainment', detailId: 'googleCloud' },
+    { item: 'Apple Cloud', amount: 90, category: 'Entertainment', detailId: 'appleCloud' },
+    { item: 'Taiwan insurance', amount: 686, category: 'Health', detailId: 'taiwanInsurance' },
+    { item: 'India insurance', amount: 3500, category: 'Health', endMonth: 2035 * 12 + 6, detailId: 'indiaInsurance' },
+    { item: 'Macbook EMI', amount: 4450, category: 'Entertainment', endMonth: 2027 * 12 + 6, detailId: 'macbookEmi' }
   ];
 
+  const CUSTOM_FIXED_EXPENSES_STORAGE_KEY = 'expense-tracker-custom-fixed-expenses';
   const RECURRING_AMOUNT_STORAGE_KEY = 'expense-tracker-recurring-amounts';
   const RECURRING_DETAILS_STORAGE_KEY = 'expense-tracker-recurring-details';
+  const RECURRING_CATEGORY_STORAGE_KEY = 'expense-tracker-recurring-categories';
   const LEGACY_TAIWAN_AMOUNT_STORAGE_KEY = 'expense-tracker-taiwan-insurance-amount';
+  let customFixedExpenses = [];
   let recurringAmountOverrides = {};
   let recurringDetailOverrides = {};
+  let recurringCategoryOverrides = {};
+  let recurringStorageReadFailed = false;
+  try {
+    const savedCustomExpenses = JSON.parse(localStorage.getItem(CUSTOM_FIXED_EXPENSES_STORAGE_KEY) || '[]');
+    if (Array.isArray(savedCustomExpenses)) {
+      customFixedExpenses = savedCustomExpenses.filter(expense =>
+        typeof expense?.detailId === 'string' &&
+        /^customFixed-[\w-]+$/.test(expense.detailId) &&
+        typeof expense.item === 'string' && expense.item.trim() &&
+        (expense.description === undefined || typeof expense.description === 'string') &&
+        Number.isFinite(expense.amount) && expense.amount > 0 &&
+        (!expense.category || Object.hasOwn(CATEGORY_META, expense.category)) &&
+        (!expense.startDate || isValidIsoDate(expense.startDate)) &&
+        (!expense.endDate || isValidIsoDate(expense.endDate)) &&
+        (!expense.startDate || !expense.endDate || expense.startDate <= expense.endDate)
+      );
+      RECURRING_EXPENSES.push(...customFixedExpenses);
+    } else {
+      console.warn('Ignoring invalid saved fixed expenses.');
+    }
+  } catch (error) {
+    console.warn('Could not read saved fixed expenses:', error);
+    recurringStorageReadFailed = true;
+    showToast('❌ Could not load fixed expenses saved on this device.');
+  }
   try {
     const savedOverrides = JSON.parse(localStorage.getItem(RECURRING_AMOUNT_STORAGE_KEY) || '{}');
     if (savedOverrides && typeof savedOverrides === 'object' && !Array.isArray(savedOverrides)) {
@@ -1590,6 +1812,7 @@
     }
   } catch (error) {
     console.warn('Could not read saved recurring expense amounts:', error);
+    recurringStorageReadFailed = true;
   }
   try {
     const savedDetails = JSON.parse(localStorage.getItem(RECURRING_DETAILS_STORAGE_KEY) || '{}');
@@ -1600,16 +1823,116 @@
     }
   } catch (error) {
     console.warn('Could not read saved recurring expense details:', error);
+    recurringStorageReadFailed = true;
+  }
+  try {
+    const savedCategories = JSON.parse(localStorage.getItem(RECURRING_CATEGORY_STORAGE_KEY) || '{}');
+    if (savedCategories && typeof savedCategories === 'object' && !Array.isArray(savedCategories)) {
+      recurringCategoryOverrides = Object.fromEntries(
+        Object.entries(savedCategories).filter(([detailId, category]) =>
+          typeof detailId === 'string' && Object.hasOwn(CATEGORY_META, category)
+        )
+      );
+    } else {
+      console.warn('Ignoring invalid saved recurring expense categories.');
+    }
+  } catch (error) {
+    console.warn('Could not read saved recurring expense categories:', error);
+    recurringStorageReadFailed = true;
   }
   RECURRING_EXPENSES.forEach(expense => {
     const savedTitle = recurringDetailOverrides[expense.detailId]?.title;
     if (typeof savedTitle === 'string' && savedTitle.trim()) {
       expense.item = savedTitle;
     }
+    if (recurringCategoryOverrides[expense.detailId]) {
+      expense.category = recurringCategoryOverrides[expense.detailId];
+    }
   });
 
   function getCatMeta(cat) {
     return CATEGORY_META[cat] || CATEGORY_META['Other'];
+  }
+
+  const CATEGORY_KEYWORDS = {
+    Food: ['breakfast', 'brunch', 'lunch', 'dinner', 'restaurant', 'cafe', 'coffee', 'tea', 'snack', 'meal', 'food', 'foodpanda', 'uber eats', 'delivery'],
+    Transport: ['bus', 'metro', 'mrt', 'taxi', 'uber', 'train', 'rail', 'parking', 'toll', 'transport', 'commute'],
+    Shopping: ['shopping', 'shopee', 'amazon', 'clothes', 'clothing', 'shirt', 'shoes', 'electronics', 'accessory', 'store', 'mall'],
+    Bills: ['rent', 'electricity', 'electric bill', 'water bill', 'internet', 'wifi', 'phone bill', 'mobile bill', 'utility', 'utilities'],
+    Market: ['wet market', 'night market', 'farmers market', 'market'],
+    Grocery: ['grocery', 'groceries', 'supermarket', 'costco', 'carrefour', 'px mart', 'vegetable', 'fruit', 'milk', 'eggs'],
+    Entertainment: ['netflix', 'spotify', 'movie', 'cinema', 'game', 'gaming', 'concert', 'youtube', 'disney', 'subscription', 'cloud', 'icloud'],
+    Health: ['insurance', 'doctor', 'hospital', 'clinic', 'medicine', 'medical', 'pharmacy', 'dental', 'dentist', 'gym', 'fitness', 'health'],
+    Fuel: ['fuel', 'petrol', 'gasoline', 'diesel', 'gas station']
+  };
+
+  function detectCategory(description) {
+    const text = String(description || '')
+      .normalize('NFKD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .replace(/[^a-z0-9\s]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+    if (!text) return null;
+
+    let bestCategory = null;
+    let bestScore = 0;
+    Object.entries(CATEGORY_KEYWORDS).forEach(([category, keywords]) => {
+      const score = Math.max(0, ...keywords
+        .filter(keyword => ` ${text} `.includes(` ${keyword} `))
+        .map(keyword => keyword.length));
+      if (score > bestScore) {
+        bestCategory = category;
+        bestScore = score;
+      }
+    });
+    return bestCategory;
+  }
+
+  function setupCategorySuggestion(inputs, select, status) {
+    let manuallySelected = false;
+    const update = () => {
+      if (manuallySelected) return;
+      const category = detectCategory(inputs.map(input => input.value).join(' '));
+      if (!category) {
+        status.textContent = '';
+        status.hidden = true;
+        return;
+      }
+      select.value = category;
+      status.textContent = `Suggested from description: ${category}`;
+      status.hidden = false;
+    };
+
+    inputs.forEach(input => input.addEventListener('input', update));
+    select.addEventListener('change', () => {
+      manuallySelected = true;
+      status.textContent = '';
+      status.hidden = true;
+    });
+
+    return {
+      reset() {
+        manuallySelected = false;
+        status.textContent = '';
+        status.hidden = true;
+      }
+    };
+  }
+
+  function isValidIsoDate(value) {
+    if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+    const [year, month, day] = value.split('-').map(Number);
+    const date = new Date(year, month - 1, day);
+    return date.getFullYear() === year && date.getMonth() === month - 1 && date.getDate() === day;
+  }
+
+  function formatIsoDate(value) {
+    if (!isValidIsoDate(value)) return '';
+    const [year, month, day] = value.split('-').map(Number);
+    return new Date(year, month - 1, day)
+      .toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
   }
 
   function formatAmount(n) {
@@ -1649,6 +1972,15 @@
     const paymentField = fields.find(field => field.type === 'computedPayments');
     if (!paymentField) return 0;
 
+    const getFieldMonth = field => {
+      if (Number.isInteger(field?.monthKey)) return field.monthKey;
+      if (field?.type === 'date' && isValidIsoDate(field.value)) {
+        const [year, month] = field.value.split('-').map(Number);
+        return year * 12 + month - 1;
+      }
+      return null;
+    };
+
     const period = paymentField.periodKey
       ? fields.find(field => field.key === paymentField.periodKey)
       : null;
@@ -1658,21 +1990,57 @@
     const endField = paymentField.endKey
       ? fields.find(field => field.key === paymentField.endKey)
       : null;
-    const startMonth = period?.startMonth ?? startField?.monthKey;
-    const endMonth = period?.endMonth ?? endField?.monthKey;
-    if (!Number.isInteger(startMonth) || !Number.isInteger(endMonth)) return 0;
+    const startMonth = period?.startMonth ?? getFieldMonth(startField) ?? currentMonth;
+    const endMonth = period?.endMonth ?? getFieldMonth(endField);
+    if (!Number.isInteger(endMonth)) return 0;
 
     const firstUnpaidMonth = Math.max(startMonth, currentMonth + (paymentField.countCurrentMonth ? 0 : 1));
     return Math.max(0, endMonth - firstUnpaidMonth + 1);
+  }
+
+  function getRecurringOccurrence(expense, year, month) {
+    const details = getRecurringDetails(expense, getRecurringAmount(expense, year * 12 + month));
+    const monthKey = year * 12 + month;
+    if (!expense.isCustomFixed) {
+      const currentDate = new Date();
+      const currentMonthKey = currentDate.getFullYear() * 12 + currentDate.getMonth();
+      if (monthKey < currentMonthKey) return null;
+
+      const period = details.fields.find(field => field.type === 'monthRange');
+      const endField = details.fields.find(field => field.key === 'premiumsThrough' && field.type === 'month');
+      const endMonthKey = period?.endMonth ?? endField?.monthKey ?? expense.endMonth;
+      if (Number.isInteger(endMonthKey) && monthKey > endMonthKey) return null;
+      return `${year}-${String(month + 1).padStart(2, '0')}-01`;
+    }
+
+    const dateFields = new Map(details.fields.filter(field => field.type === 'date').map(field => [field.key, field.value]));
+    const startDate = dateFields.get('startDate') || expense.startDate || '';
+    const endDate = dateFields.get('endDate') || expense.endDate || '';
+    if ((startDate && !isValidIsoDate(startDate)) ||
+        (endDate && !isValidIsoDate(endDate)) ||
+        (startDate && endDate && startDate > endDate)) return null;
+
+    const [startYear, startMonth, startDay] = startDate
+      ? startDate.split('-').map(Number)
+      : [year, month + 1, 1];
+    const occurrenceDay = Math.min(startDay, new Date(year, month + 1, 0).getDate());
+    const occurrence = new Date(year, month, occurrenceDay);
+    const occurrenceIsoDate = `${occurrence.getFullYear()}-${String(occurrence.getMonth() + 1).padStart(2, '0')}-${String(occurrence.getDate()).padStart(2, '0')}`;
+    if ((startDate && (monthKey < startYear * 12 + startMonth - 1 || occurrenceIsoDate < startDate)) ||
+        (endDate && occurrenceIsoDate > endDate)) {
+      return null;
+    }
+    return occurrenceIsoDate;
   }
 
   let activeRecurringDetailId = null;
   let recurringDetailsDraft = null;
 
   function getDefaultRecurringDetails(expense, monthlyAmount) {
+    const categoryLabel = `${expense.category || 'Bills'} · Monthly`;
     const common = [
       { key: 'monthlyAmount', label: 'Monthly amount', type: 'amount' },
-      { key: 'category', label: 'Category', type: 'text', value: 'Bills · Monthly' }
+      { key: 'category', label: 'Category', type: 'text', value: categoryLabel }
     ];
 
     if (expense.detailId === 'macbookEmi') {
@@ -1681,7 +2049,7 @@
         description: 'Monthly installment plan for your MacBook.',
         fields: [
           { key: 'monthlyAmount', label: 'Monthly installment', type: 'amount' },
-          { key: 'category', label: 'Category', type: 'text', value: 'Bills · Monthly' },
+          { key: 'category', label: 'Category', type: 'text', value: categoryLabel },
           { key: 'purchased', label: 'Purchased', type: 'month', monthKey: 2026 * 12 + 7 },
           {
             key: 'emiPeriod',
@@ -1707,7 +2075,7 @@
         description: 'Monthly premium for your TATA AIA Life Insurance policy.',
         fields: [
           { key: 'monthlyAmount', label: 'Monthly premium', type: 'amount' },
-          { key: 'category', label: 'Category', type: 'text', value: 'Bills · Monthly' },
+          { key: 'category', label: 'Category', type: 'text', value: categoryLabel },
           { key: 'insurer', label: 'Insurer', type: 'text', value: 'TATA AIA Life Insurance' },
           { key: 'policyStarted', label: 'Policy started', type: 'month', monthKey: 2025 * 12 + 6 },
           {
@@ -1730,10 +2098,27 @@
 
     return {
       title: expense.item,
-      description: `Monthly recurring bill for ${expense.item}.`,
-      fields: common.map(field => field.type === 'amount'
-        ? { ...field, label: 'Monthly amount', value: monthlyAmount }
-        : field)
+      description: expense.description || `Monthly recurring bill for ${expense.item}.`,
+      fields: expense.isCustomFixed
+        ? [
+            { key: 'monthlyAmount', label: 'Monthly amount', type: 'amount' },
+            { key: 'category', label: 'Category', type: 'text', value: categoryLabel },
+            ...(expense.startDate ? [{ key: 'startDate', label: 'Start date', type: 'date', value: expense.startDate }] : []),
+            ...(expense.endDate ? [
+              { key: 'endDate', label: 'End date', type: 'date', value: expense.endDate },
+              {
+                key: 'paymentsRemaining',
+                label: 'Payments remaining',
+                type: 'computedPayments',
+                ...(expense.startDate ? { startKey: 'startDate' } : {}),
+                endKey: 'endDate',
+                countCurrentMonth: true
+              }
+            ] : [])
+          ]
+        : common.map(field => field.type === 'amount'
+          ? { ...field, label: 'Monthly amount', value: monthlyAmount }
+          : field)
     };
   }
 
@@ -1744,29 +2129,49 @@
 
     const defaultFields = new Map(defaults.fields.map(field => [field.key, field]));
     const fields = Array.isArray(saved.fields) ? saved.fields.slice(0, 40) : defaults.fields;
+    const mergedFields = fields.map(field => {
+      const baseField = defaultFields.get(field.key);
+      const merged = baseField ? { ...baseField, ...field } : field;
+      return {
+        ...merged,
+        value: merged.key === 'category' && baseField
+          ? baseField.value
+          : merged.type === 'amount' ? monthlyAmount : merged.value
+      };
+    });
+    const existingKeys = new Set(mergedFields.map(field => field.key));
+    defaults.fields.forEach(field => {
+      if ((field.key === 'category' || field.type === 'computedPayments') && !existingKeys.has(field.key)) {
+        mergedFields.push(field);
+      }
+    });
     return {
       title: typeof saved.title === 'string' ? saved.title : defaults.title,
       description: typeof saved.description === 'string' ? saved.description : defaults.description,
-      fields: fields.map(field => {
-        const baseField = defaultFields.get(field.key);
-        const merged = baseField ? { ...baseField, ...field } : field;
-        return {
-          ...merged,
-          value: merged.type === 'amount' ? monthlyAmount : merged.value
-        };
-      })
+      fields: mergedFields
     };
   }
 
   function renderRecurringFieldEditor(field, monthlyAmount, index) {
     const key = escapeHtml(field.key);
+    const expense = RECURRING_EXPENSES.find(row => row.detailId === activeRecurringDetailId);
     const isPaymentDependency = recurringDetailsDraft.fields.some(candidate =>
       candidate.type === 'computedPayments' &&
       (candidate.periodKey === field.key || candidate.startKey === field.key || candidate.endKey === field.key)
     );
-    const cannotRemove = field.type === 'amount' || isPaymentDependency;
+    const cannotRemove = field.type === 'amount' || field.type === 'computedPayments' ||
+      field.key === 'category' || isPaymentDependency ||
+      (expense?.isCustomFixed && ['startDate', 'endDate'].includes(field.key));
     let valueEditor;
-    if (field.type === 'amount') {
+    if (field.key === 'category') {
+      const selectedCategory = recurringDetailsDraft?.category || expense?.category || 'Other';
+      valueEditor = `
+        <label for="recurringFieldCategory${index}">Main category</label>
+        <select id="recurringFieldCategory${index}" data-field-property="category" required>
+          ${Object.entries(CATEGORY_META).map(([category, meta]) => `
+            <option value="${escapeHtml(category)}"${category === selectedCategory ? ' selected' : ''}>${meta.icon} ${escapeHtml(category)}</option>`).join('')}
+        </select>`;
+    } else if (field.type === 'amount') {
       valueEditor = `
         <label for="recurringFieldAmount${index}">Monthly amount (NTD)</label>
         <input id="recurringFieldAmount${index}" data-field-property="amount" type="number" min="0.01" step="any" value="${recurringDetailsDraft?.amount ?? monthlyAmount}" required>`;
@@ -1774,6 +2179,10 @@
       valueEditor = `
         <label for="recurringFieldMonth${index}">Month</label>
         <input id="recurringFieldMonth${index}" data-field-property="monthKey" type="month" value="${getMonthKeyInput(field.monthKey)}" required>`;
+    } else if (field.type === 'date') {
+      valueEditor = `
+        <label for="recurringFieldDate${index}">Date</label>
+        <input id="recurringFieldDate${index}" data-field-property="date" type="date" value="${escapeHtml(field.value || '')}" required>`;
     } else if (field.type === 'monthRange') {
       valueEditor = `
         <div class="recurring-detail-month-range">
@@ -1787,9 +2196,10 @@
           </div>
         </div>`;
     } else if (field.type === 'computedPayments') {
+      const count = getRemainingPayments(activeRecurringDetailId, new Date(), recurringDetailsDraft?.fields || []);
       valueEditor = `
         <label>Calculated automatically</label>
-        <div class="recurring-detail-computed">${getRemainingPayments(activeRecurringDetailId, new Date(), recurringDetailsDraft?.fields || [])} payments; updates each month</div>`;
+        <div class="recurring-detail-computed">${count} ${count === 1 ? 'payment' : 'payments'}; updates each month</div>`;
     } else {
       valueEditor = `
         <label for="recurringFieldValue${index}">Value</label>
@@ -1844,11 +2254,17 @@
               value = `NT$${formatAmount(monthlyAmount)}`;
             } else if (field.type === 'month') {
               value = formatMonthKey(field.monthKey);
+            } else if (field.type === 'date') {
+              value = formatIsoDate(field.value);
             } else if (field.type === 'monthRange') {
               value = `${formatMonthKey(field.startMonth)} – ${formatMonthKey(field.endMonth)}`;
             } else if (field.type === 'computedPayments') {
               const count = getRemainingPayments(detailId, new Date(), details.fields);
-              value = `${count} ${detailId === 'macbookEmi' ? 'EMIs' : 'monthly payments'}`;
+              if (detailId === 'macbookEmi') {
+                value = `${count} ${count === 1 ? 'EMI' : 'EMIs'}`;
+              } else {
+                value = `${count} ${count === 1 ? 'monthly payment' : 'monthly payments'}`;
+              }
             } else {
               value = field.value;
             }
@@ -1883,6 +2299,10 @@
     setTimeout(() => t.classList.remove('show'), 2500);
   }
 
+  if (recurringStorageReadFailed) {
+    showToast('Some saved recurring expense data could not be loaded from this device.');
+  }
+
   // ───────── Month Navigation ─────────
   let viewMonth = new Date().getMonth();
   let viewYear = new Date().getFullYear();
@@ -1893,24 +2313,25 @@
       .map((row, originalIndex) => ({ ...row, originalIndex }))
       .sort((a, b) => new Date(b.date) - new Date(a.date) || b.originalIndex - a.originalIndex);
     const monthKey = year * 12 + month;
-    const now = new Date();
-    const currentMonthKey = now.getFullYear() * 12 + now.getMonth();
-
-    if (monthKey >= currentMonthKey) {
-      const monthDate = `${year}-${String(month + 1).padStart(2, '0')}-01`;
-      const recurringRows = RECURRING_EXPENSES
-        .filter(expense => expense.endMonth === undefined || monthKey <= expense.endMonth)
-        .map(expense => ({
+    const recurringRows = RECURRING_EXPENSES
+      .map(expense => {
+        const occurrenceDate = getRecurringOccurrence(expense, year, month);
+        return occurrenceDate ? {
           ...expense,
           amount: getRecurringAmount(expense, monthKey),
-          category: 'Bills',
-          date: monthDate,
+          category: expense.category || 'Bills',
+          date: occurrenceDate,
           isRecurring: true
-        }));
-      expenses.push(...recurringRows);
-    }
+        } : null;
+      })
+      .filter(Boolean);
+    expenses.push(...recurringRows);
 
     return expenses.filter(row => {
+      if (row.isRecurring && isValidIsoDate(row.date)) {
+        const [rowYear, rowMonth] = row.date.split('-').map(Number);
+        return rowMonth === month + 1 && rowYear === year;
+      }
       const rowDate = new Date(row.date);
       return rowDate.getMonth() === month && rowDate.getFullYear() === year;
     });
@@ -1942,7 +2363,9 @@
   }
 
   function openCategoryDetails(category, expenses) {
-    const categoryExpenses = expenses.filter(row => row.category === category);
+    const categoryExpenses = expenses
+      .filter(row => row.category === category)
+      .sort((a, b) => new Date(b.date) - new Date(a.date));
     const total = categoryExpenses.reduce((sum, row) => sum + (parseFloat(row.amount) || 0), 0);
     document.getElementById('categoryDialogTitle').textContent = `${getCatMeta(category).icon} ${category}`;
     document.getElementById('categoryDialogTotal').textContent =
@@ -1953,7 +2376,9 @@
         <li class="category-detail-row">
           <div>
             <div class="category-detail-item">${escapeHtml(row.item)}</div>
-            <div class="category-detail-date">${rowDate.toLocaleDateString('default', { month: 'short', day: 'numeric', year: 'numeric' })}${row.isRecurring ? ' · Monthly' : ''}</div>
+            <div class="category-detail-date">${row.isRecurring && isValidIsoDate(row.date)
+              ? formatIsoDate(row.date)
+              : rowDate.toLocaleDateString('default', { month: 'short', day: 'numeric', year: 'numeric' })}${row.isRecurring ? ' · Monthly' : ''}</div>
           </div>
           <div class="category-detail-amount">NT$${formatAmount(parseFloat(row.amount) || 0)}</div>
         </li>`;
@@ -1971,11 +2396,120 @@
   document.getElementById('closeRecurringDetail').addEventListener('click', () => recurringDetailDialog.close());
   recurringDetailDialog.addEventListener('cancel', event => event.preventDefault());
   const recurringDetailContent = document.getElementById('recurringDetailContent');
+  const addFixedExpenseDialog = document.getElementById('addFixedExpenseDialog');
+  const addFixedExpenseForm = document.getElementById('addFixedExpenseForm');
+  const fixedExpenseNameInput = document.getElementById('fixedExpenseName');
+  const fixedExpenseDescriptionInput = document.getElementById('fixedExpenseDescription');
+  const fixedExpenseCategoryInput = document.getElementById('fixedExpenseCategory');
+  const fixedExpenseStartDateInput = document.getElementById('fixedExpenseStartDate');
+  const fixedExpenseEndDateInput = document.getElementById('fixedExpenseEndDate');
+  const fixedExpenseDateError = document.getElementById('fixedExpenseDateError');
+  const saveFixedExpenseButton = document.getElementById('saveFixedExpense');
+  const fixedCategorySuggestion = setupCategorySuggestion(
+    [fixedExpenseNameInput, fixedExpenseDescriptionInput],
+    fixedExpenseCategoryInput,
+    document.getElementById('fixedExpenseCategorySuggestion')
+  );
+  let isSavingFixedExpense = false;
+  const clearFixedExpenseDateError = () => {
+    fixedExpenseDateError.hidden = true;
+    fixedExpenseDateError.textContent = '';
+    fixedExpenseStartDateInput.removeAttribute('aria-invalid');
+    fixedExpenseEndDateInput.removeAttribute('aria-invalid');
+  };
+  const closeAddFixedExpenseDialog = () => addFixedExpenseDialog.close();
+  document.getElementById('closeAddFixedExpense').addEventListener('click', closeAddFixedExpenseDialog);
+  document.getElementById('cancelAddFixedExpense').addEventListener('click', closeAddFixedExpenseDialog);
+  addFixedExpenseDialog.addEventListener('cancel', event => event.preventDefault());
+  addFixedExpenseDialog.addEventListener('close', () => {
+    document.getElementById('addFixedExpenseButton')?.focus();
+  });
+  fixedExpenseStartDateInput.addEventListener('input', clearFixedExpenseDateError);
+  fixedExpenseEndDateInput.addEventListener('input', clearFixedExpenseDateError);
+  document.getElementById('expenseList').addEventListener('click', event => {
+    if (!event.target.closest('#addFixedExpenseButton')) return;
+    addFixedExpenseForm.reset();
+    fixedCategorySuggestion.reset();
+    clearFixedExpenseDateError();
+    addFixedExpenseDialog.showModal();
+    fixedExpenseNameInput.focus();
+  });
+  addFixedExpenseForm.addEventListener('submit', event => {
+    event.preventDefault();
+    if (isSavingFixedExpense) return;
+    const item = fixedExpenseNameInput.value.trim();
+    const description = fixedExpenseDescriptionInput.value.trim();
+    const amount = Number(document.getElementById('fixedExpenseAmount').value);
+    const category = fixedExpenseCategoryInput.value;
+    const startDate = document.getElementById('fixedExpenseStartDate').value;
+    const endDate = document.getElementById('fixedExpenseEndDate').value;
+
+    const hasInvalidStartDate = Boolean(startDate) && !isValidIsoDate(startDate);
+    const hasInvalidEndDate = Boolean(endDate) && !isValidIsoDate(endDate);
+    if (hasInvalidStartDate || hasInvalidEndDate) {
+      if (hasInvalidStartDate) fixedExpenseStartDateInput.setAttribute('aria-invalid', 'true');
+      if (hasInvalidEndDate) fixedExpenseEndDateInput.setAttribute('aria-invalid', 'true');
+      fixedExpenseDateError.textContent = 'Enter a valid start and end date, or leave them empty.';
+      fixedExpenseDateError.hidden = false;
+      (hasInvalidStartDate ? fixedExpenseStartDateInput : fixedExpenseEndDateInput).focus();
+      return;
+    }
+
+    if (startDate && endDate && startDate > endDate) {
+      fixedExpenseStartDateInput.setAttribute('aria-invalid', 'true');
+      fixedExpenseEndDateInput.setAttribute('aria-invalid', 'true');
+      fixedExpenseDateError.textContent = 'End date must be on or after start date.';
+      fixedExpenseDateError.hidden = false;
+      fixedExpenseEndDateInput.focus();
+      showToast('❌ End date must be on or after start date.');
+      return;
+    }
+
+    clearFixedExpenseDateError();
+    if (!item || !Object.hasOwn(CATEGORY_META, category) || !Number.isFinite(amount) || amount <= 0) {
+      showToast('❌ Enter a name, category, and valid monthly amount.');
+      return;
+    }
+
+    const fixedExpense = {
+      item,
+      description,
+      amount,
+      category,
+      startDate,
+      endDate,
+      detailId: `customFixed-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      isCustomFixed: true
+    };
+    const updatedCustomExpenses = [...customFixedExpenses, fixedExpense];
+    isSavingFixedExpense = true;
+    saveFixedExpenseButton.disabled = true;
+    try {
+      localStorage.setItem(CUSTOM_FIXED_EXPENSES_STORAGE_KEY, JSON.stringify(updatedCustomExpenses));
+    } catch (error) {
+      console.error('Could not save fixed expense:', error);
+      showToast('❌ Could not save the fixed expense on this device.');
+      return;
+    } finally {
+      isSavingFixedExpense = false;
+      saveFixedExpenseButton.disabled = false;
+    }
+
+    customFixedExpenses = updatedCustomExpenses;
+    RECURRING_EXPENSES.push(fixedExpense);
+    addFixedExpenseForm.reset();
+    fixedCategorySuggestion.reset();
+    closeAddFixedExpenseDialog();
+    renderDashboard(allData);
+    showToast(`✅ ${item} added to fixed expenses.`);
+  });
+
   function readRecurringDetailsForm() {
     const form = document.getElementById('recurringDetailsForm');
     const title = document.getElementById('recurringExpenseTitleInput').value.trim();
     const description = document.getElementById('recurringExpenseDescriptionInput').value.trim();
     let amount = null;
+    let category = null;
     const fields = recurringDetailsDraft.fields.map(field => {
       const row = [...form.querySelectorAll('.recurring-detail-field-editor')]
         .find(element => element.dataset.fieldKey === field.key);
@@ -1988,9 +2522,17 @@
       if (field.type === 'amount') {
         amount = Number(row.querySelector('[data-field-property="amount"]').value);
       } else if (field.type === 'text') {
-        updated.value = row.querySelector('[data-field-property="value"]').value.trim();
+        if (field.key === 'category') {
+          category = row.querySelector('[data-field-property="category"]').value;
+          updated.value = `${category} · Monthly`;
+        } else {
+          const valueInput = row.querySelector('[data-field-property="value"]');
+          updated.value = valueInput ? valueInput.value.trim() : field.value;
+        }
       } else if (field.type === 'month') {
         updated.monthKey = parseMonthKeyInput(row.querySelector('[data-field-property="monthKey"]').value);
+      } else if (field.type === 'date') {
+        updated.value = row.querySelector('[data-field-property="date"]').value;
       } else if (field.type === 'monthRange') {
         updated.startMonth = parseMonthKeyInput(row.querySelector('[data-field-property="startMonth"]').value);
         updated.endMonth = parseMonthKeyInput(row.querySelector('[data-field-property="endMonth"]').value);
@@ -1998,7 +2540,7 @@
       return updated;
     }).filter(Boolean);
 
-    return { title, description, fields, amount };
+    return { title, description, fields, amount, category };
   }
 
   function parseMonthKeyInput(value) {
@@ -2052,14 +2594,19 @@
 
     const expense = RECURRING_EXPENSES.find(row => row.detailId === activeRecurringDetailId);
     const details = readRecurringDetailsForm();
+    const startDate = details.fields.find(field => field.key === 'startDate' && field.type === 'date')?.value;
+    const endDate = details.fields.find(field => field.key === 'endDate' && field.type === 'date')?.value;
     const hasInvalidField = !details.title || !details.description ||
       details.fields.some(field => !field.label ||
         (field.type === 'text' && !field.value) ||
         (field.type === 'month' && !Number.isInteger(field.monthKey)) ||
+        (field.type === 'date' && !isValidIsoDate(field.value)) ||
         (field.type === 'monthRange' &&
-          (!Number.isInteger(field.startMonth) || !Number.isInteger(field.endMonth) || field.startMonth > field.endMonth)));
-    if (!expense || hasInvalidField || !Number.isFinite(details.amount) || details.amount <= 0) {
-      showToast('❌ Check the detail blocks and enter a valid monthly amount.');
+          (!Number.isInteger(field.startMonth) || !Number.isInteger(field.endMonth) || field.startMonth > field.endMonth))) ||
+      (expense?.isCustomFixed && startDate && endDate && startDate > endDate);
+    if (!expense || hasInvalidField || !Object.hasOwn(CATEGORY_META, details.category) ||
+        !Number.isFinite(details.amount) || details.amount <= 0) {
+      showToast('❌ Check the category, detail blocks, and monthly amount.');
       return;
     }
 
@@ -2076,9 +2623,14 @@
         fields: details.fields
       }
     };
+    const updatedCategoryOverrides = {
+      ...recurringCategoryOverrides,
+      [activeRecurringDetailId]: details.category
+    };
     try {
       localStorage.setItem(RECURRING_AMOUNT_STORAGE_KEY, JSON.stringify(updatedOverrides));
       localStorage.setItem(RECURRING_DETAILS_STORAGE_KEY, JSON.stringify(updatedDetailOverrides));
+      localStorage.setItem(RECURRING_CATEGORY_STORAGE_KEY, JSON.stringify(updatedCategoryOverrides));
     } catch (error) {
       console.error(`Could not save ${expense.item} recurring details:`, error);
       showToast('❌ Could not save these details on this device.');
@@ -2087,6 +2639,8 @@
 
     recurringAmountOverrides = updatedOverrides;
     recurringDetailOverrides = updatedDetailOverrides;
+    recurringCategoryOverrides = updatedCategoryOverrides;
+    expense.category = details.category;
     recurringDetailsDraft = null;
     renderRecurringDetails(activeRecurringDetailId);
     renderDashboard(allData);
@@ -2222,6 +2776,13 @@
 
   // ───────── Form Submit ─────────
   const form = document.getElementById('expenseForm');
+  const expenseDescriptionInput = document.getElementById('item');
+  const expenseCategoryInput = document.getElementById('category');
+  const expenseCategorySuggestion = setupCategorySuggestion(
+    [expenseDescriptionInput],
+    expenseCategoryInput,
+    document.getElementById('categorySuggestion')
+  );
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     const btn = document.getElementById('submitBtn');
@@ -2242,6 +2803,7 @@
         body: JSON.stringify(newExpense)
       });
       form.reset();
+      expenseCategorySuggestion.reset();
       document.getElementById('date').valueAsDate = new Date();
       showToast('✅ Expense added successfully!');
       fetchData();
@@ -2341,7 +2903,7 @@
       ...Object.keys(previousCatTotals)
         .filter(category => !Object.hasOwn(catTotals, category))
         .map(category => [category, 0])
-    ];
+    ].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
     const catHtml = categories.map(([cat, total], index) => {
       const meta = getCatMeta(cat);
       const comparison = renderComparison(total, previousCatTotals[cat] || 0);
@@ -2362,23 +2924,22 @@
     const regularExpenses = monthlyExpenses.filter(row => !row.isRecurring);
     const recurringExpenses = monthlyExpenses.filter(row => row.isRecurring);
     const recurringTotal = recurringExpenses.reduce((total, row) => total + (parseFloat(row.amount) || 0), 0);
-    if (regularExpenses.length || recurringExpenses.length) {
-      let listHtml = regularExpenses.map(renderExpenseRow).join('');
-      if (recurringExpenses.length) {
-        listHtml += `
-          <li class="recurring-heading">
-            <span>Recurring · Monthly</span>
-            <span>NT$${formatAmount(recurringTotal)}</span>
-          </li>
-          ${recurringExpenses.map(renderExpenseRow).join('')}`;
-      }
-      document.getElementById('expenseList').innerHTML = listHtml;
-      initSwipe();
-    } else {
+    let listHtml = regularExpenses.map(renderExpenseRow).join('');
+    if (!regularExpenses.length && !recurringExpenses.length) {
       const monthName = new Date(viewYear, viewMonth).toLocaleString('default', { month: 'long', year: 'numeric' });
-      document.getElementById('expenseList').innerHTML =
-        `<li class="empty-state"><div class="empty-icon">📭</div><p>No expenses in ${monthName}</p></li>`;
+      listHtml = `<li class="empty-state"><div class="empty-icon">📭</div><p>No expenses in ${monthName}</p></li>`;
     }
+    listHtml += `
+      <li class="recurring-heading">
+        <div class="recurring-heading-info">
+          <span>Recurring · Monthly</span>
+          <span>NT$${formatAmount(recurringTotal)}</span>
+        </div>
+        <button class="add-fixed-expense-button" id="addFixedExpenseButton" type="button" aria-label="Add fixed expense" title="Add fixed expense">+</button>
+      </li>
+      ${recurringExpenses.map(renderExpenseRow).join('')}`;
+    document.getElementById('expenseList').innerHTML = listHtml;
+    initSwipe();
   }
 
   // ───────── Delete Expense ─────────
