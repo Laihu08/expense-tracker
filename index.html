@@ -1760,6 +1760,8 @@
   const RECURRING_CATEGORY_STORAGE_KEY = 'expense-tracker-recurring-categories';
   const LEGACY_TAIWAN_AMOUNT_STORAGE_KEY = 'expense-tracker-taiwan-insurance-amount';
   let customFixedExpenses = [];
+  let localFixedExpensesToMigrate = [];
+  let fixedExpenseSyncEnabled = false;
   let recurringAmountOverrides = {};
   let recurringDetailOverrides = {};
   let recurringCategoryOverrides = {};
@@ -1779,6 +1781,7 @@
         (!expense.startDate || !expense.endDate || expense.startDate <= expense.endDate)
       );
       RECURRING_EXPENSES.push(...customFixedExpenses);
+      localFixedExpensesToMigrate = [...customFixedExpenses];
     } else {
       console.warn('Ignoring invalid saved fixed expenses.');
     }
@@ -1849,6 +1852,97 @@
       expense.category = recurringCategoryOverrides[expense.detailId];
     }
   });
+
+  function normalizeSyncedFixedExpense(expense) {
+    if (!expense || typeof expense.detailId !== 'string' ||
+        !/^customFixed-[\w-]+$/.test(expense.detailId) ||
+        typeof expense.item !== 'string' || !expense.item.trim() ||
+        !Number.isFinite(Number(expense.amount)) || Number(expense.amount) <= 0 ||
+        !Object.hasOwn(CATEGORY_META, expense.category)) {
+      return null;
+    }
+    return {
+      detailId: expense.detailId,
+      item: expense.item.trim(),
+      description: typeof expense.description === 'string' ? expense.description : '',
+      amount: Number(expense.amount),
+      category: expense.category,
+      startDate: isValidIsoDate(expense.startDate) ? expense.startDate : '',
+      endDate: isValidIsoDate(expense.endDate) ? expense.endDate : '',
+      details: expense.details && typeof expense.details === 'object' && !Array.isArray(expense.details)
+        ? expense.details
+        : null,
+      isCustomFixed: true
+    };
+  }
+
+  function replaceCustomFixedExpenses(expenses) {
+    const normalized = expenses.map(normalizeSyncedFixedExpense).filter(Boolean);
+    for (let index = RECURRING_EXPENSES.length - 1; index >= 0; index--) {
+      if (RECURRING_EXPENSES[index].isCustomFixed) RECURRING_EXPENSES.splice(index, 1);
+    }
+    customFixedExpenses = normalized;
+    RECURRING_EXPENSES.push(...normalized);
+    normalized.forEach(expense => {
+      delete recurringAmountOverrides[expense.detailId];
+      delete recurringCategoryOverrides[expense.detailId];
+      if (expense.details) recurringDetailOverrides[expense.detailId] = expense.details;
+      else delete recurringDetailOverrides[expense.detailId];
+    });
+  }
+
+  async function postExpenseApi(payload) {
+    const response = await fetch(API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify(payload)
+    });
+    const result = await response.json();
+    if (result.status !== 'success') {
+      throw new Error(result.message || 'The expense service rejected the request');
+    }
+    return result;
+  }
+
+  async function migrateLocalFixedExpenses(serverExpenses) {
+    if (!localFixedExpensesToMigrate.length) return serverExpenses;
+    const merged = [...serverExpenses];
+    const serverIds = new Set(serverExpenses.map(expense => expense.detailId));
+    let migrationFailed = false;
+
+    for (const expense of localFixedExpensesToMigrate) {
+      if (serverIds.has(expense.detailId)) continue;
+      try {
+        const savedDetails = recurringDetailOverrides[expense.detailId];
+        const savedAmount = recurringAmountOverrides[expense.detailId]?.amount;
+        const migrationExpense = {
+          ...expense,
+          item: savedDetails?.title || expense.item,
+          description: savedDetails?.description || expense.description || '',
+          amount: Number.isFinite(savedAmount) ? savedAmount : expense.amount,
+          category: recurringCategoryOverrides[expense.detailId] || expense.category,
+          details: savedDetails || expense.details || null
+        };
+        const result = await postExpenseApi({ action: 'addFixedExpense', ...migrationExpense });
+        merged.push(result.fixedExpense);
+        serverIds.add(expense.detailId);
+      } catch (error) {
+        migrationFailed = true;
+        merged.push(expense);
+        console.error(`Could not migrate fixed expense ${expense.item}:`, error);
+      }
+    }
+
+    if (!migrationFailed) {
+      localFixedExpensesToMigrate = [];
+      try {
+        localStorage.removeItem(CUSTOM_FIXED_EXPENSES_STORAGE_KEY);
+      } catch (error) {
+        console.warn('Could not remove migrated fixed expenses from local storage:', error);
+      }
+    }
+    return merged;
+  }
 
   function getCatMeta(cat) {
     return CATEGORY_META[cat] || CATEGORY_META['Other'];
@@ -1940,6 +2034,7 @@
   }
 
   function getRecurringAmount(expense, monthKey) {
+    if (expense.isCustomFixed) return expense.amount;
     const override = recurringAmountOverrides[expense.detailId];
     return override && monthKey >= override.startMonth
       ? override.amount
@@ -2124,7 +2219,9 @@
 
   function getRecurringDetails(expense, monthlyAmount) {
     const defaults = getDefaultRecurringDetails(expense, monthlyAmount);
-    const saved = recurringDetailOverrides[expense.detailId];
+    const saved = expense.isCustomFixed && expense.details
+      ? expense.details
+      : recurringDetailOverrides[expense.detailId];
     if (!saved || typeof saved !== 'object') return defaults;
 
     const defaultFields = new Map(defaults.fields.map(field => [field.key, field]));
@@ -2281,7 +2378,10 @@
       ? `<button type="submit" form="recurringDetailsForm" class="btn btn-primary">Save details</button>
          <button type="button" class="btn btn-secondary" data-action="add-detail">Add detail block</button>
          <button type="button" class="btn btn-secondary" data-action="cancel-edit">Cancel</button>`
-      : '<button class="btn btn-secondary" type="button" id="editRecurringAmountButton">Edit details</button>';
+      : `<button class="btn btn-secondary" type="button" id="editRecurringAmountButton">Edit details</button>
+         ${expense.isCustomFixed
+           ? '<button class="btn btn-secondary" type="button" data-action="delete-fixed-expense">Delete fixed expense</button>'
+           : ''}`;
     content.scrollTop = scrollTop;
   }
 
@@ -2434,7 +2534,7 @@
     addFixedExpenseDialog.showModal();
     fixedExpenseNameInput.focus();
   });
-  addFixedExpenseForm.addEventListener('submit', event => {
+  addFixedExpenseForm.addEventListener('submit', async event => {
     event.preventDefault();
     if (isSavingFixedExpense) return;
     const item = fixedExpenseNameInput.value.trim();
@@ -2481,27 +2581,36 @@
       detailId: `customFixed-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
       isCustomFixed: true
     };
-    const updatedCustomExpenses = [...customFixedExpenses, fixedExpense];
     isSavingFixedExpense = true;
     saveFixedExpenseButton.disabled = true;
+    saveFixedExpenseButton.innerHTML = '<span class="spinner"></span> Saving...';
     try {
-      localStorage.setItem(CUSTOM_FIXED_EXPENSES_STORAGE_KEY, JSON.stringify(updatedCustomExpenses));
+      if (fixedExpenseSyncEnabled) {
+        await postExpenseApi({ action: 'addFixedExpense', ...fixedExpense });
+        await fetchData();
+      } else {
+        const updatedCustomExpenses = [...customFixedExpenses, fixedExpense];
+        localStorage.setItem(CUSTOM_FIXED_EXPENSES_STORAGE_KEY, JSON.stringify(updatedCustomExpenses));
+        localFixedExpensesToMigrate = [...updatedCustomExpenses];
+        replaceCustomFixedExpenses(updatedCustomExpenses);
+        renderDashboard(allData);
+      }
     } catch (error) {
       console.error('Could not save fixed expense:', error);
-      showToast('❌ Could not save the fixed expense on this device.');
+      showToast('❌ Could not save the fixed expense.');
       return;
     } finally {
       isSavingFixedExpense = false;
       saveFixedExpenseButton.disabled = false;
+      saveFixedExpenseButton.textContent = 'Save fixed expense';
     }
 
-    customFixedExpenses = updatedCustomExpenses;
-    RECURRING_EXPENSES.push(fixedExpense);
     addFixedExpenseForm.reset();
     fixedCategorySuggestion.reset();
     closeAddFixedExpenseDialog();
-    renderDashboard(allData);
-    showToast(`✅ ${item} added to fixed expenses.`);
+    showToast(fixedExpenseSyncEnabled
+      ? `✅ ${item} saved and synced.`
+      : `✅ ${item} saved on this device; sync needs the updated Apps Script.`);
   });
 
   function readRecurringDetailsForm() {
@@ -2550,8 +2659,29 @@
     return year * 12 + month - 1;
   }
 
-  recurringDetailDialog.addEventListener('click', event => {
-    if (event.target.closest('#editRecurringAmountButton')) {
+  recurringDetailDialog.addEventListener('click', async event => {
+    if (event.target.closest('[data-action="delete-fixed-expense"]')) {
+      const expense = RECURRING_EXPENSES.find(row => row.detailId === activeRecurringDetailId);
+      if (!expense?.isCustomFixed || !window.confirm(`Delete ${expense.item} from fixed expenses?`)) return;
+      try {
+        if (fixedExpenseSyncEnabled) {
+          await postExpenseApi({ action: 'deleteFixedExpense', detailId: expense.detailId });
+          recurringDetailDialog.close();
+          await fetchData();
+        } else {
+          const remaining = customFixedExpenses.filter(row => row.detailId !== expense.detailId);
+          localStorage.setItem(CUSTOM_FIXED_EXPENSES_STORAGE_KEY, JSON.stringify(remaining));
+          localFixedExpensesToMigrate = [...remaining];
+          replaceCustomFixedExpenses(remaining);
+          recurringDetailDialog.close();
+          renderDashboard(allData);
+        }
+        showToast(`✅ ${expense.item} removed from fixed expenses.`);
+      } catch (error) {
+        console.error(`Could not delete fixed expense ${expense.item}:`, error);
+        showToast('❌ Could not delete the fixed expense.');
+      }
+    } else if (event.target.closest('#editRecurringAmountButton')) {
       const expense = RECURRING_EXPENSES.find(row => row.detailId === activeRecurringDetailId);
       const now = new Date();
       const monthlyAmount = getRecurringAmount(expense, now.getFullYear() * 12 + now.getMonth());
@@ -2588,7 +2718,7 @@
       renderRecurringDetails(activeRecurringDetailId, true);
     }
   });
-  recurringDetailContent.addEventListener('submit', event => {
+  recurringDetailContent.addEventListener('submit', async event => {
     if (event.target.id !== 'recurringDetailsForm') return;
     event.preventDefault();
 
@@ -2607,6 +2737,47 @@
     if (!expense || hasInvalidField || !Object.hasOwn(CATEGORY_META, details.category) ||
         !Number.isFinite(details.amount) || details.amount <= 0) {
       showToast('❌ Check the category, detail blocks, and monthly amount.');
+      return;
+    }
+
+    if (expense.isCustomFixed) {
+      const updatedExpense = {
+        ...expense,
+        item: details.title,
+        description: details.description,
+        amount: details.amount,
+        category: details.category,
+        startDate: startDate || '',
+        endDate: endDate || '',
+        details: {
+          title: details.title,
+          description: details.description,
+          fields: details.fields
+        }
+      };
+      try {
+        if (fixedExpenseSyncEnabled) {
+          await postExpenseApi({ action: 'editFixedExpense', ...updatedExpense });
+          recurringDetailsDraft = null;
+          await fetchData();
+        } else {
+          const updatedCustomExpenses = customFixedExpenses.map(row =>
+            row.detailId === updatedExpense.detailId ? updatedExpense : row
+          );
+          localStorage.setItem(CUSTOM_FIXED_EXPENSES_STORAGE_KEY, JSON.stringify(updatedCustomExpenses));
+          localFixedExpensesToMigrate = [...updatedCustomExpenses];
+          replaceCustomFixedExpenses(updatedCustomExpenses);
+          recurringDetailsDraft = null;
+          renderDashboard(allData);
+        }
+        renderRecurringDetails(activeRecurringDetailId);
+        showToast(fixedExpenseSyncEnabled
+          ? `✅ ${details.title} details saved and synced.`
+          : `✅ ${details.title} details saved on this device.`);
+      } catch (error) {
+        console.error(`Could not save ${expense.item} fixed expense details:`, error);
+        showToast('❌ Could not save the fixed expense details.');
+      }
       return;
     }
 
@@ -2829,6 +3000,11 @@
       if (result.status !== "success") {
         throw new Error(result.message || 'Expense service returned an error');
       }
+      fixedExpenseSyncEnabled = result.features?.fixedExpenses === true && Array.isArray(result.fixedExpenses);
+      if (fixedExpenseSyncEnabled) {
+        const syncedFixedExpenses = await migrateLocalFixedExpenses(result.fixedExpenses);
+        replaceCustomFixedExpenses(syncedFixedExpenses);
+      }
       allData = result.data;
       renderDashboard(allData);
     } catch (err) {
@@ -2843,7 +3019,9 @@
     const amount = parseFloat(row.amount) || 0;
     const meta = getCatMeta(row.category);
     const expenseName = row.isRecurring && row.detailId
-      ? recurringDetailOverrides[row.detailId]?.title || row.item
+      ? row.isCustomFixed
+        ? row.item
+        : recurringDetailOverrides[row.detailId]?.title || row.item
       : row.item;
     const expenseMeta = row.isRecurring
       ? `${row.category}<span class="recurring-monthly-badge">Monthly</span>`
